@@ -20,3 +20,8 @@ def test_get_current_time(client):
     data = response.get_json()
     assert 'time' in data
     assert isinstance(data['time'], (int, float))
+
+def test_get_username(client):
+    # This test is expected to fail since the /api/username route is not implemented
+    response = client.get('/api/username')
+    assert response.status_code == 404
