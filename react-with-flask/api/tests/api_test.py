@@ -60,6 +60,53 @@ class TestUserRegistration:
         assert "message" in data
         assert "user_id" in data
         assert data["message"] == "User registered successfully"
+    
+    def test_register_fails_with_duplicate_username(self, client, mock_db_connection):
+        # Simulate a database error for duplicate username
+        user_data_1 = {
+            "username": "alva020201",
+            "password_hash": "password123",
+            "alias": "Alva",
+            "user_colour": "#000000",
+            "created_at": "2026-01-01T00:00:00Z",
+        }
+        user_data_2 = {
+            "username": "alva020201",
+            "password_hash": "password234",
+            "alias": "Alva",
+            "user_colour": "#000000",
+            "created_at": "2026-01-01T00:00:00Z",
+        }
+
+        # Create mock connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+
+        # Set up the mock connection
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        # First insert succeeds (fetchone returns id)
+        mock_cursor.fetchone.side_effect = [(1,)]
+
+        response = client.post("/register", json=user_data_1)
+
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        # Second insert raises an exception
+        mock_cursor.fetchone.side_effect = [(1,), Exception("duplicate username")]
+
+        response2 = client.post("/register", json=user_data_2)
+
+        # First request should succeed, second should hit the exception path and return 500
+        assert response.status_code == 201
+        assert response2.status_code == 500
+        data = response2.get_json()
+        assert "message" in data
+        assert data["message"] == "Failed to register user"
 
 # register returns error message if username is already taken
 # post request fails if required fields are missing
