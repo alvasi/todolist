@@ -2,7 +2,12 @@ import time
 from flask import Flask, request, jsonify, session
 import psycopg
 from psycopg import OperationalError
+from pathlib import Path
+from dotenv import load_dotenv
 import os
+
+env_path = Path("/Users/alvasi/Desktop/Projects/todolist/react-with-flask/.env")
+load_dotenv(dotenv_path=env_path)
 
 def get_db_connection():
     """Establish a connection to the PostgreSQL database"""
@@ -61,10 +66,11 @@ def create_app():
                         ),
                     )
                     db_connection.commit()
+                    user_id = cursor.fetchone()[0]
             except Exception as e:
                 print(f"Error saving user to database: {e}")
                 return {"message": "Failed to register user"}, 500
 
-        return {"message": "User registered successfully"}, 201
+        return {"message": "User registered successfully", "user_id": user_id}, 201
 
     return app

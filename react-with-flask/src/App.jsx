@@ -34,7 +34,6 @@ function App() {
         >
           Count is {count}
         </button>
-        <p>The current time is {new Date(currentTime * 1000).toLocaleString()}.</p>
       </section>
 
       <div className="ticks"></div>

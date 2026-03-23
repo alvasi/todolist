@@ -14,6 +14,11 @@ def client():
     with app.test_client() as client:
         yield client
 
+@pytest.fixture
+def mock_db_connection():
+    """Fixture to mock database connection"""
+    with patch("app.api.get_db_connection") as mock_db:
+        yield mock_db
 
 class TestBasicRoutes:
     """Test basic application routes"""
@@ -27,7 +32,7 @@ class TestBasicRoutes:
 class TestUserRegistration:
     """Test user registration endpoint"""
 
-    def test_register_creates_new_user(self, client):
+    def test_register_creates_new_user(self, client, mock_db_connection):
         user_data = {
             "username": "alva020201",
             "password_hash": "password123",
@@ -36,15 +41,26 @@ class TestUserRegistration:
             "created_at": "2026-01-01T00:00:00Z",
         }
 
+        # Create mock connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+
+        # Set up the mock connection
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        # Mock fetchone to return a tuple with the new user's id (cursor.fetchone()[0])
+        mock_cursor.fetchone.return_value = (1,)
+        
         response = client.post("/register", json=user_data)
         data = response.get_json()
-
+        
         assert response.status_code == 201
         assert "message" in data
         assert "user_id" in data
         assert data["message"] == "User registered successfully"
 
-# register creates a new user if username is not taken
 # register returns error message if username is already taken
 # post request fails if required fields are missing
 # password is hashed in the database
