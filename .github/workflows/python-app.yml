@@ -33,11 +33,23 @@ jobs:
         # Start the database service
         docker compose up -d db
         
-        # Wait for database to be ready
-        docker compose exec -T db pg_isready -U user -d todolist
+        # Wait for database to be ready with proper pg_isready command
+        echo "Waiting for PostgreSQL to be ready..."
+        for i in {1..30}; do
+          if docker compose exec -T db pg_isready -U user -d todolist -h localhost; then
+            echo "PostgreSQL is ready!"
+            break
+          fi
+          echo "Attempt $i: PostgreSQL not ready yet..."
+          sleep 2
+        done
         
-        # Run the init script manually
-        docker compose exec -T db psql -U user -d todolist -f /docker-entrypoint-initdb.d/01-init.sql
+        # Give PostgreSQL a moment to fully initialise
+        sleep 2
+        
+        # Verify the init script ran
+        echo "Checking if tables exist..."
+        docker compose exec -T db psql -U user -d todolist -c "\dt"
         
       working-directory: react-with-flask
     
@@ -87,6 +99,7 @@ jobs:
   # Test Docker Compose build
   docker-build-test:
     runs-on: ubuntu-latest
+    needs: [flask-lint-test, vite-test]
     
     steps:
     - uses: actions/checkout@v4
