@@ -55,17 +55,15 @@ jobs:
         done
       env:
         PGPASSWORD: testpass
-    
+
     - name: Create database tables
       env:
         DATABASE_URL: postgresql://testuser:testpass@localhost:5432/todolist_test
       run: |
-        if [ -f database_schema.sql ]; then
-          PGPASSWORD=testpass psql -h localhost -U testuser -d todolist_test -f database_schema.sql
-          echo "✓ Database tables created from SQL file"
-        else
-          echo "⚠️  No database_schema.sql found, skipping table creation"
-        fi
+        # Run SQL schema
+        PGPASSWORD=testpass psql -h localhost -U testuser -d todolist_test -f database_schema.sql
+        echo "✓ Database tables created"
+      working-directory: react-with-flask
     
     - name: Lint backend with flake8
       run: |
