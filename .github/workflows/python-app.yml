@@ -44,5 +44,5 @@ jobs:
     - name: Test frontend with vitest
       run: |
         npm test
-      working-directory: ./src
+      working-directory: react-with-flask
     
