@@ -91,7 +91,7 @@ jobs:
         SECRET_KEY: test-secret-key-for-ci
       run: |
         cd react-with-flask
-        pytest tests/ -v --tb=short
+        pytest
 
     - name: Test frontend with vitest
       run: |
