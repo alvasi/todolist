@@ -14,6 +14,22 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    # Add PostgreSQL service
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: todolist_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
     - uses: actions/checkout@v4
 
@@ -37,6 +53,29 @@ jobs:
       run: |
         npm install
       working-directory: react-with-flask
+
+    - name: Wait for PostgreSQL to be ready
+      run: |
+        # Wait for PostgreSQL to accept connections
+        for i in {1..30}; do
+          if pg_isready -h localhost -U testuser; then
+            echo "PostgreSQL is ready"
+            break
+          fi
+          echo "Waiting for PostgreSQL... $i"
+          sleep 2
+        done
+      env:
+        PGPASSWORD: testpass
+
+    - name: Create database tables
+      env:
+        DATABASE_URL: postgresql://testuser:testpass@localhost:5432/todolist_test
+      run: |
+        cd react-with-flask
+        # Run your SQL schema
+        PGPASSWORD=testpass psql -h localhost -U testuser -d todolist_test -f database_schema.sql
+        echo "✓ Database tables created"
 
     - name: Lint backend with flake8
       run: |
