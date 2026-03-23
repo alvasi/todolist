@@ -86,9 +86,12 @@ jobs:
 
     - name: Test backend with pytest
       env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        DATABASE_URL: postgresql://testuser:testpass@localhost:5432/todolist_test
+        TEST_DATABASE_URL: postgresql://testuser:testpass@localhost:5432/todolist_test
+        SECRET_KEY: test-secret-key-for-ci
       run: |
-        pytest
+        cd react-with-flask
+        pytest tests/ -v --tb=short
 
     - name: Test frontend with vitest
       run: |
