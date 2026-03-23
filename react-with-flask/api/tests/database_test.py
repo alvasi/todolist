@@ -2,19 +2,22 @@
 import pytest
 import psycopg
 from psycopg import OperationalError
+from pathlib import Path
+from dotenv import load_dotenv
 import os
+
+env_path = Path('/Users/alvasi/Desktop/Projects/todolist/react-with-flask/.env')
+load_dotenv(dotenv_path=env_path)
 
 class TestDatabaseConnection:
     """Test PostgreSQL database connection with psycopg3"""
     
     def test_connection_success(self):
-        """Test successful database connection"""
-        # Get database URL from environment or use default
+        # Get database URL from environment
         db_url = os.environ.get(
             'DATABASE_URL',
-            'postgresql://todo_user:your_password@localhost/todolist'
         )
-        
+
         try:
             # Attempt to connect
             conn = psycopg.connect(db_url)
@@ -34,7 +37,6 @@ class TestDatabaseConnection:
         """Test that all required tables exist"""
         db_url = os.environ.get(
             'DATABASE_URL',
-            'postgresql://todo_user:your_password@localhost/todolist'
         )
         
         conn = psycopg.connect(db_url)
