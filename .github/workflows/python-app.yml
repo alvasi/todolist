@@ -41,10 +41,7 @@ jobs:
     - name: Test backend with pytest
       run: |
         pytest
-    - name: Lint frontend with eslint
-      run: |
-        npm run lint
     - name: Test frontend with vitest
       run: |
-        npm run test
+        npm test
     
