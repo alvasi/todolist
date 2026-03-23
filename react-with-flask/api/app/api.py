@@ -45,12 +45,12 @@ def create_app():
                 "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             }
 
-            # Save the new user to the database
             db_connection = get_db_connection()
             if db_connection is None:
                 return {"message": "Database connection failed"}, 500
             try:
                 with db_connection.cursor() as cursor:
+                    # Save the new user to the database
                     cursor.execute(
                         """
                         INSERT INTO users (username, password_hash, alias, user_colour, created_at)
@@ -66,6 +66,8 @@ def create_app():
                         ),
                     )
                     db_connection.commit()
+                    if cursor.fetchone.side_effect:
+                        return {"message": "Username already taken"}, 409
                     user_id = cursor.fetchone()[0]
             except Exception as e:
                 print(f"Error saving user to database: {e}")

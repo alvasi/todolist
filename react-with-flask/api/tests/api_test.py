@@ -88,7 +88,7 @@ class TestUserRegistration:
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
         # First insert succeeds (fetchone returns id)
-        mock_cursor.fetchone.side_effect = [(1,)]
+        mock_cursor.fetchone.return_value = (1,)
 
         response = client.post("/register", json=user_data_1)
 
@@ -96,19 +96,18 @@ class TestUserRegistration:
         mock_conn.__enter__.return_value = mock_conn
         mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
 
-        # Second insert raises an exception
+        # Second insert returns a message indicating username is taken
         mock_cursor.fetchone.side_effect = [(1,), Exception("duplicate username")]
 
         response2 = client.post("/register", json=user_data_2)
 
         # First request should succeed, second should hit the exception path and return 500
         assert response.status_code == 201
-        assert response2.status_code == 500
+        assert response2.status_code == 409
         data = response2.get_json()
         assert "message" in data
-        assert data["message"] == "Failed to register user"
+        assert data["message"] == "Username already taken"
 
-# register returns error message if username is already taken
 # post request fails if required fields are missing
 # password is hashed in the database
 # post request fails if incorrect data types are provided
