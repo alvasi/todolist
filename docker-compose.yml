@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: 
+      context: ./react-with-flask/
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:5001
+    depends_on:
+      - api
+    volumes:
+      - ./react-with-flask/:/app
+      - /app/node_modules
+    networks:
+      - todolist_network
+
+  api:
+    build: 
+      context: ./react-with-flask/api
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/todolist
+      - SECRET_KEY=dev-secret-key
+      - FLASK_ENV=development
+      - FLASK_APP=app.api
+      - FLASK_RUN_HOST=0.0.0.0
+      - FLASK_RUN_PORT=5001
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./react-with-flask/api:/app
+    networks:
+      - todolist_network
+    command: flask run --host=0.0.0.0 --port=5001 --reload
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: todolist
+    ports:
+      - "5431:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./react-with-flask/database_schema.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d todolist"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - todolist_network
+
+volumes:
+  postgres_data:
+
+networks:
+  todolist_network:
+    driver: bridge
+
+# name: todolist
+
+# services:
+#   web:
+#     build: ./react-with-flask
+#     ports:
+#       - 5173:5173
+    
+#   api:
+#     build: ./react-with-flask/api
+#     depends_on:
+#       - db
+#     ports:
+#       - 5001:5001
+#     environment:
+#       - DB_URL=postgresql://user:password@db/todolist
+
+#   db:
+#     image: postgres:latest
+#     environment:
+#       POSTGRES_USER: user
+#       POSTGRES_PASSWORD: password
+#       POSTGRES_DB: todolist
+#     ports:
+#       - 5432:5432
