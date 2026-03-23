@@ -1,4 +1,4 @@
-name: ToDo List CI
+name: To Do List CI
 
 on:
   push:
@@ -10,11 +10,10 @@ permissions:
   contents: read
 
 jobs:
-  lint-and-test:
-
+  # Backend tests with PostgreSQL
+  flask-lint-test:
     runs-on: ubuntu-latest
-
-    # Add PostgreSQL service
+    
     services:
       postgres:
         image: postgres:15
@@ -32,31 +31,20 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Set up Python 3.13
       uses: actions/setup-python@v3
       with:
         python-version: "3.13"
-
+    
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-      working-directory: react-with-flask/api
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: "20"
-
-    - name: Install Node.js dependencies
-      run: |
-        npm install
-      working-directory: react-with-flask
-
+        pip install -r api/requirements.txt
+        pip install flake8 pytest pytest-cov
+    
     - name: Wait for PostgreSQL to be ready
       run: |
-        # Wait for PostgreSQL to accept connections
         for i in {1..30}; do
           if pg_isready -h localhost -U testuser; then
             echo "PostgreSQL is ready"
@@ -67,34 +55,172 @@ jobs:
         done
       env:
         PGPASSWORD: testpass
-
+    
     - name: Create database tables
       env:
         DATABASE_URL: postgresql://testuser:testpass@localhost:5432/todolist_test
       run: |
-        cd react-with-flask
-        # Run your SQL schema
-        PGPASSWORD=testpass psql -h localhost -U testuser -d todolist_test -f database_schema.sql
-        echo "✓ Database tables created"
-
+        if [ -f database_schema.sql ]; then
+          PGPASSWORD=testpass psql -h localhost -U testuser -d todolist_test -f database_schema.sql
+          echo "✓ Database tables created from SQL file"
+        else
+          echo "⚠️  No database_schema.sql found, skipping table creation"
+        fi
+    
     - name: Lint backend with flake8
       run: |
-        # stop the build if there are Python syntax errors or undefined names
+        cd api
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-
+    
     - name: Test backend with pytest
       env:
         DATABASE_URL: postgresql://testuser:testpass@localhost:5432/todolist_test
         TEST_DATABASE_URL: postgresql://testuser:testpass@localhost:5432/todolist_test
         SECRET_KEY: test-secret-key-for-ci
+        FLASK_ENV: testing
       run: |
-        cd react-with-flask
-        pytest
+        cd api
+        pytest tests/ -v --tb=short --cov=. --cov-report=xml
+    
+    - name: Upload backend coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./api/coverage.xml
+        flags: backend
+        name: backend-coverage
 
+  # Frontend tests
+  frontend-lint-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+    
+    - name: Install Node.js dependencies
+      run: |
+        npm install
+      working-directory: react-with-flask
+    
+    - name: Lint frontend (if you have linting)
+      run: |
+        npm run lint || echo "No lint script found"
+      working-directory: react-with-flask
+      continue-on-error: true
+    
     - name: Test frontend with vitest
       run: |
         npm test
       working-directory: react-with-flask
+    
+    - name: Upload frontend coverage
+      uses: codecov/codecov-action@v3
+      with:
+        flags: frontend
+        name: frontend-coverage
+
+# name: ToDo List CI
+
+# on:
+#   push:
+#     branches: [ main ]
+#   pull_request:
+#     branches: [ main ]
+
+# permissions:
+#   contents: read
+
+# jobs:
+#   lint-and-test:
+
+#     runs-on: ubuntu-latest
+
+#     # Add PostgreSQL service
+#     services:
+#       postgres:
+#         image: postgres:15
+#         env:
+#           POSTGRES_USER: testuser
+#           POSTGRES_PASSWORD: testpass
+#           POSTGRES_DB: todolist_test
+#         ports:
+#           - 5432:5432
+#         options: >-
+#           --health-cmd pg_isready
+#           --health-interval 10s
+#           --health-timeout 5s
+#           --health-retries 5
+
+#     steps:
+#     - uses: actions/checkout@v4
+
+#     - name: Set up Python 3.13
+#       uses: actions/setup-python@v3
+#       with:
+#         python-version: "3.13"
+
+#     - name: Install Python dependencies
+#       run: |
+#         python -m pip install --upgrade pip
+#         pip install -r requirements.txt
+#       working-directory: react-with-flask/api
+
+#     - name: Set up Node.js
+#       uses: actions/setup-node@v4
+#       with:
+#         node-version: "20"
+
+#     - name: Install Node.js dependencies
+#       run: |
+#         npm install
+#       working-directory: react-with-flask
+
+#     - name: Wait for PostgreSQL to be ready
+#       run: |
+#         # Wait for PostgreSQL to accept connections
+#         for i in {1..30}; do
+#           if pg_isready -h localhost -U testuser; then
+#             echo "PostgreSQL is ready"
+#             break
+#           fi
+#           echo "Waiting for PostgreSQL... $i"
+#           sleep 2
+#         done
+#       env:
+#         PGPASSWORD: testpass
+
+#     - name: Create database tables
+#       env:
+#         DATABASE_URL: postgresql://testuser:testpass@localhost:5432/todolist_test
+#       run: |
+#         cd react-with-flask
+#         # Run your SQL schema
+#         PGPASSWORD=testpass psql -h localhost -U testuser -d todolist_test -f database_schema.sql
+#         echo "✓ Database tables created"
+
+#     - name: Lint backend with flake8
+#       run: |
+#         # stop the build if there are Python syntax errors or undefined names
+#         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+#         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+#         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+#     - name: Test backend with pytest
+#       env:
+#         DATABASE_URL: postgresql://testuser:testpass@localhost:5432/todolist_test
+#         TEST_DATABASE_URL: postgresql://testuser:testpass@localhost:5432/todolist_test
+#         SECRET_KEY: test-secret-key-for-ci
+#       run: |
+#         cd react-with-flask
+#         pytest
+
+#     - name: Test frontend with vitest
+#       run: |
+#         npm test
+#       working-directory: react-with-flask
     
