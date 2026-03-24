@@ -260,15 +260,22 @@ def create_app():
     
     @app.route("/todos", methods=["GET"])
     def get_all_tasks():
-        """Get all tasks for current user"""
+        """Get all tasks where user is creator OR collaborator"""
         user_id = get_current_user_id()
         db_connection = get_db_connection()
         
         try:
             with db_connection.cursor() as cursor:
                 cursor.execute(
-                    "SELECT id, title, task_description, due_date, task_status, task_priority, is_private, created_at "
-                    "FROM tasks WHERE created_by_id = %s ORDER BY created_at DESC",
+                    """
+                    SELECT DISTINCT t.id, t.title, t.task_description, t.due_date, 
+                        t.task_status, t.task_priority, t.is_private, 
+                        t.created_at, t.updated_at, tc.permission
+                    FROM tasks t
+                    INNER JOIN task_collaborators tc ON t.id = tc.task_id
+                    WHERE tc.user_id = %s
+                    ORDER BY t.created_at DESC
+                    """,
                     (user_id,)
                 )
                 tasks = cursor.fetchall()
@@ -279,11 +286,16 @@ def create_app():
                             "id": task[0],
                             "title": task[1],
                             "description": task[2],
-                            "due_date": task[3],
-                            "status": task[4],
-                            "priority": task[5],
+                            "due_date": task[3].isoformat() if task[3] else None,
+                            "task_status": task[4],
+                            "task_priority": task[5],
                             "is_private": task[6],
-                            "created_at": task[7]
+                            "created_by_id": task[7],
+                            "updated_by_id": task[8],
+                            "team_id": task[9],
+                            "created_at": task[10].isoformat() if task[10] else None,
+                            "updated_at": task[11].isoformat() if task[8] else None,
+                            "permission": task[12]  # Add permission from collaborator table
                         }
                         for task in tasks
                     ]
