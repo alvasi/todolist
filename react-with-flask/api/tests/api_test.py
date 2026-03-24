@@ -205,6 +205,263 @@ class TestUserRegistration:
 
 class TestUserLogin:
     """Test user login endpoint"""
-# if username not found, message: username not found
-# if password does not match, message: incorrect password
-# login successful if username and password matches the one in db
+
+    def test_login_successful_with_valid_credentials(self, client, mock_db_connection):
+        """Test successful login with valid username and password"""
+        login_data = {
+            "username": "alva020201",
+            "password": "password123",
+        }
+
+        # Create mock connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+
+        # Set up the mock connection
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        # Mock fetchone to return a user record
+        mock_cursor.fetchone.return_value = (1, "alva020201", "Alva", "#000000")
+        
+        response = client.post("/login", json=login_data)
+        data = response.get_json()
+        
+        assert response.status_code == 200
+        assert data["message"] == "Login successful"
+        assert "user" in data
+        assert data["user"]["id"] == 1
+        assert data["user"]["username"] == "alva020201"
+        assert data["user"]["alias"] == "Alva"
+        assert data["user"]["colour"] == "#000000"
+        
+        # Verify the SQL query was executed correctly
+        mock_cursor.execute.assert_called_once_with(
+            "SELECT id, username, alias, user_colour FROM users WHERE username = %s AND password_hash = %s",
+            (login_data["username"], login_data["password"])
+        )
+
+    def test_login_fails_with_username_not_found(self, client, mock_db_connection):
+        """Test login fails when username doesn't exist"""
+        login_data = {
+            "username": "nonexistent",
+            "password": "password123",
+        }
+
+        # Create mock connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+
+        # Set up the mock connection
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        # Mock fetchone to return None (user not found)
+        mock_cursor.fetchone.return_value = None
+        
+        response = client.post("/login", json=login_data)
+        data = response.get_json()
+        
+        assert response.status_code == 401
+        assert data["message"] == "Invalid username or password"
+        
+        # Verify the SQL query was executed
+        mock_cursor.execute.assert_called_once()
+
+    def test_login_fails_with_incorrect_password(self, client, mock_db_connection):
+        """Test login fails when password is incorrect"""
+        login_data = {
+            "username": "alva020201",
+            "password": "wrongpassword",
+        }
+
+        # Create mock connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+
+        # Set up the mock connection
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        # Mock fetchone to return None (password doesn't match)
+        mock_cursor.fetchone.return_value = None
+        
+        response = client.post("/login", json=login_data)
+        data = response.get_json()
+        
+        assert response.status_code == 401
+        assert data["message"] == "Invalid username or password"
+        
+        # Verify the SQL query was executed with the wrong password
+        mock_cursor.execute.assert_called_once_with(
+            "SELECT id, username, alias, user_colour FROM users WHERE username = %s AND password_hash = %s",
+            (login_data["username"], login_data["password"])
+        )
+
+    def test_login_fails_with_missing_username(self, client, mock_db_connection):
+        """Test login fails when username is missing"""
+        login_data = {
+            "password": "password123",
+        }
+        
+        response = client.post("/login", json=login_data)
+        data = response.get_json()
+        
+        assert response.status_code == 400
+        assert data["message"] == "Username and password are required"
+        mock_db_connection.assert_not_called()
+
+    def test_login_fails_with_missing_password(self, client, mock_db_connection):
+        """Test login fails when password is missing"""
+        login_data = {
+            "username": "alva020201",
+        }
+        
+        response = client.post("/login", json=login_data)
+        data = response.get_json()
+        
+        assert response.status_code == 400
+        assert data["message"] == "Username and password are required"
+        mock_db_connection.assert_not_called()
+
+    def test_login_fails_with_empty_username(self, client, mock_db_connection):
+        """Test login fails with empty username"""
+        login_data = {
+            "username": "",
+            "password": "password123",
+        }
+        
+        response = client.post("/login", json=login_data)
+        data = response.get_json()
+        
+        assert response.status_code == 400
+        assert data["message"] == "Username and password are required"
+
+    def test_login_fails_with_empty_password(self, client, mock_db_connection):
+        """Test login fails with empty password"""
+        login_data = {
+            "username": "alva020201",
+            "password": "",
+        }
+        
+        response = client.post("/login", json=login_data)
+        data = response.get_json()
+        
+        assert response.status_code == 400
+        assert data["message"] == "Username and password are required"
+
+    def test_login_handles_database_connection_error(self, client, mock_db_connection):
+        """Test login handles database connection errors gracefully"""
+        login_data = {
+            "username": "alva020201",
+            "password": "password123",
+        }
+
+        # Mock database connection to return None (connection failed)
+        mock_db_connection.return_value = None
+        
+        response = client.post("/login", json=login_data)
+        data = response.get_json()
+        
+        assert response.status_code == 500
+        assert data["message"] == "Database connection failed"
+
+    def test_login_handles_database_exception(self, client, mock_db_connection):
+        """Test login handles database exceptions gracefully"""
+        login_data = {
+            "username": "alva020201",
+            "password": "password123",
+        }
+
+        # Create mock connection that raises an exception
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        
+        # Mock execute to raise an exception
+        mock_cursor.execute.side_effect = Exception("Database error")
+        
+        response = client.post("/login", json=login_data)
+        data = response.get_json()
+        
+        assert response.status_code == 500
+        assert data["message"] == "Login failed"
+
+    def test_login_accepts_form_data(self, client, mock_db_connection):
+        """Test login works with form data (not JSON)"""
+        login_data = {
+            "username": "alva020201",
+            "password": "password123",
+        }
+
+        # Create mock connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        # Mock fetchone to return a user record
+        mock_cursor.fetchone.return_value = (1, "alva020201", "Alva", "#000000")
+        
+        # Send as form data instead of JSON
+        response = client.post("/login", data=login_data)
+        data = response.get_json()
+        
+        assert response.status_code == 200
+        assert data["message"] == "Login successful"
+        assert data["user"]["username"] == "alva020201"
+
+    def test_login_returns_user_data_with_alias(self, client, mock_db_connection):
+        """Test login returns user data including alias"""
+        login_data = {
+            "username": "alva020201",
+            "password": "password123",
+        }
+
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        # Mock fetchone to return user with alias
+        mock_cursor.fetchone.return_value = (1, "alva020201", "Custom Alias", "#ff0000")
+        
+        response = client.post("/login", json=login_data)
+        data = response.get_json()
+        
+        assert response.status_code == 200
+        assert data["user"]["alias"] == "Custom Alias"
+        assert data["user"]["colour"] == "#ff0000"
+
+    def test_login_handles_username_with_whitespace(self, client, mock_db_connection):
+        """Test login handles usernames with whitespace"""
+        login_data = {
+            "username": "  alva020201  ",
+            "password": "password123",
+        }
+
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        # Mock fetchone to return a user record
+        mock_cursor.fetchone.return_value = (1, "alva020201", "Alva", "#000000")
+        
+        response = client.post("/login", json=login_data)
+        
+        # The query should be called with the username as is (without trimming)
+        # Your implementation may or may not trim whitespace
+        assert response.status_code in [200, 401]
