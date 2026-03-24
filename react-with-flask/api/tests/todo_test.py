@@ -463,4 +463,246 @@ class TestTodoTask:
         assert data["tasks"][0]["title"] == "Task 3"
         assert data["tasks"][0]["team_id"] == "team-2"
 
+    def test_filter_by_due_date_from(self, authenticated_client, mock_db_connection):
+        """Test filtering tasks with due date after a certain date"""
+        client, user_id = authenticated_client
+        
+        # Mock tasks with different due dates
+        mock_tasks = [
+            (
+                "123e4567-e89b-12d3-a456-426614174000",
+                "Task 1 - Past",
+                "Description 1",
+                date(2026, 1, 15),  # Past date
+                "not_started",
+                "medium",
+                False,
+                "team-1",
+                user_id,
+                user_id,
+                datetime(2026, 1, 1, tzinfo=timezone.utc),
+                datetime(2026, 1, 1, tzinfo=timezone.utc),
+                "owner"
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174001",
+                "Task 2 - Current",
+                "Description 2",
+                date(2026, 3, 25),  # Current date
+                "in_progress",
+                "high",
+                False,
+                "team-1",
+                user_id,
+                user_id,
+                datetime(2026, 3, 1, tzinfo=timezone.utc),
+                datetime(2026, 3, 1, tzinfo=timezone.utc),
+                "owner"
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174002",
+                "Task 3 - Future",
+                "Description 3",
+                date(2026, 12, 31),  # Future date
+                "not_started",
+                "low",
+                False,
+                "team-1",
+                user_id,
+                user_id,
+                datetime(2026, 12, 1, tzinfo=timezone.utc),
+                datetime(2026, 12, 1, tzinfo=timezone.utc),
+                "owner"
+            )
+        ]
+        
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        
+        # Filter tasks with due_date >= 2026-03-01
+        filtered_tasks = [task for task in mock_tasks if task[3] >= date(2026, 3, 1)]
+        mock_cursor.fetchall.return_value = filtered_tasks
+        
+        response = client.get("/todos?due_date_from=2026-03-01")
+        data = response.get_json()
+        
+        assert response.status_code == 200
+        assert len(data["tasks"]) == 2
+        assert data["tasks"][0]["title"] == "Task 2 - Current"
+        assert data["tasks"][1]["title"] == "Task 3 - Future"
+        
+        # Verify the query includes due_date filter
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        
+        assert "AND t.due_date >= %s" in query
+        assert "2026-03-01" in params
+
+    def test_filter_by_due_date_to(self, authenticated_client, mock_db_connection):
+        """Test filtering tasks with due date before a certain date"""
+        client, user_id = authenticated_client
+        
+        mock_tasks = [
+            (
+                "123e4567-e89b-12d3-a456-426614174000",
+                "Task 1 - Past",
+                "Description 1",
+                date(2026, 1, 15),
+                "not_started",
+                "medium",
+                False,
+                "team-1",
+                user_id,
+                user_id,
+                datetime(2026, 1, 1, tzinfo=timezone.utc),
+                datetime(2026, 1, 1, tzinfo=timezone.utc),
+                "owner"
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174001",
+                "Task 2 - Current",
+                "Description 2",
+                date(2026, 3, 25),
+                "in_progress",
+                "high",
+                False,
+                "team-1",
+                user_id,
+                user_id,
+                datetime(2026, 3, 1, tzinfo=timezone.utc),
+                datetime(2026, 3, 1, tzinfo=timezone.utc),
+                "owner"
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174002",
+                "Task 3 - Future",
+                "Description 3",
+                date(2026, 12, 31),
+                "not_started",
+                "low",
+                False,
+                "team-1",
+                user_id,
+                user_id,
+                datetime(2026, 12, 1, tzinfo=timezone.utc),
+                datetime(2026, 12, 1, tzinfo=timezone.utc),
+                "owner"
+            )
+        ]
+        
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        
+        # Filter tasks with due_date <= 2026-06-01
+        filtered_tasks = [task for task in mock_tasks if task[3] <= date(2026, 6, 1)]
+        mock_cursor.fetchall.return_value = filtered_tasks
+        
+        response = client.get("/todos?due_date_to=2026-06-01")
+        data = response.get_json()
+        
+        assert response.status_code == 200
+        assert len(data["tasks"]) == 2
+        assert data["tasks"][0]["title"] == "Task 1 - Past"
+        assert data["tasks"][1]["title"] == "Task 2 - Current"
+        
+        # Verify the query includes due_date filter
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        
+        assert "AND t.due_date <= %s" in query
+        assert "2026-06-01" in params
+
+    def test_filter_by_due_date_range(self, authenticated_client, mock_db_connection):
+        """Test filtering tasks within a date range"""
+        client, user_id = authenticated_client
+        
+        mock_tasks = [
+            (
+                "123e4567-e89b-12d3-a456-426614174000",
+                "Task 1 - Early",
+                "Description 1",
+                date(2026, 1, 15),
+                "not_started",
+                "medium",
+                False,
+                "team-1",
+                user_id,
+                user_id,
+                datetime(2026, 1, 1, tzinfo=timezone.utc),
+                datetime(2026, 1, 1, tzinfo=timezone.utc),
+                "owner"
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174001",
+                "Task 2 - Mid",
+                "Description 2",
+                date(2026, 3, 25),
+                "in_progress",
+                "high",
+                False,
+                "team-1",
+                user_id,
+                user_id,
+                datetime(2026, 3, 1, tzinfo=timezone.utc),
+                datetime(2026, 3, 1, tzinfo=timezone.utc),
+                "owner"
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174002",
+                "Task 3 - Late",
+                "Description 3",
+                date(2026, 6, 15),
+                "not_started",
+                "low",
+                False,
+                "team-1",
+                user_id,
+                user_id,
+                datetime(2026, 6, 1, tzinfo=timezone.utc),
+                datetime(2026, 6, 1, tzinfo=timezone.utc),
+                "owner"
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174003",
+                "Task 4 - Future",
+                "Description 4",
+                date(2026, 12, 31),
+                "not_started",
+                "medium",
+                False,
+                "team-1",
+                user_id,
+                user_id,
+                datetime(2026, 12, 1, tzinfo=timezone.utc),
+                datetime(2026, 12, 1, tzinfo=timezone.utc),
+                "owner"
+            )
+        ]
+        
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        
+        # Filter tasks with due_date between 2026-03-01 and 2026-09-01
+        filtered_tasks = [
+            task for task in mock_tasks 
+            if date(2026, 3, 1) <= task[3] <= date(2026, 9, 1)
+        ]
+        mock_cursor.fetchall.return_value = filtered_tasks
+        
+        response = client.get("/todos?due_date_from=2026-03-01&due_date_to=2026-09-01")
+        data = response.get_json()
+        
+        assert response.status_code == 200
+        assert len(data["tasks"]) == 2
+        assert data["tasks"][0]["title"] == "Task 2 - Mid"
+        assert data["tasks"][1]["title"] == "Task 3 - Late"
+        
+        # Verify the query includes both due_date filters
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        
+        assert "AND t.due_date >= %s" in query
+        assert "AND t.due_date <= %s" in query
+        assert "2026-03-01" in params
+        assert "2026-09-01" in params
                 
