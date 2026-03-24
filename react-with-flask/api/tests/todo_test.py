@@ -345,14 +345,28 @@ class TestTodoTask:
         mock_cursor.execute.assert_called_once()
         query = mock_cursor.execute.call_args[0][0]
         
-        # This is what we're actually testing - the SQL generation
+        # Testing the SQL generation
         assert "ORDER BY t.created_at DESC" in query
         assert "DESC" in query  # Default is descending
 
-    def test_sort_task_by_task_name_alpabetically(self, authenticated_client, mock_db_connection):
+    def test_sort_task_by_task_title_alpabetically(self, authenticated_client, mock_db_connection):
         """ Testing sorting tasks based on task name"""
         client, user_id = authenticated_client
-        pass
+
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchall.return_value = []
+
+        response = client.get("/todos?sort_by=title&sort_order=asc")
+        
+        # Verify the SQL query contains the correct ORDER BY clause
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        
+        # Check that ORDER BY title ASC is in the query
+        assert "ORDER BY t.title ASC" in query
+        assert response.status_code == 200
+    
     
     def test_sort_task_by_task_status(self, authenticated_client, mock_db_connection):
         pass
