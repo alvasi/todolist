@@ -414,7 +414,7 @@ class TestTodoTask:
         mock_cursor.fetchall.return_value = []
 
         # archived, completed, in progress, not started
-        response = client.get("/todos?sort_by=task_priority&sort_order=asc")
+        response = client.get("/todos?sort_by=priority&sort_order=asc")
         
         # Verify the SQL query contains the correct ORDER BY clause
         mock_cursor.execute.assert_called_once()
@@ -429,7 +429,7 @@ class TestTodoTask:
         assert "WHEN 'urgent' THEN 4" in query
         assert response.status_code == 200
 
-        response = client.get("/todos?sort_by=task_priority&sort_order=desc")
+        response = client.get("/todos?sort_by=priority&sort_order=desc")
         
         # Verify the SQL query contains the correct ORDER BY clause
         query = mock_cursor.execute.call_args[0][0]

@@ -275,7 +275,7 @@ def create_app():
         sort_by = request.args.get('sort_by', 'created_at') 
         sort_order = request.args.get('sort_order', 'desc')  # asc or desc
 
-        valid_sort_fields = ['created_at','title', 'task_status']
+        valid_sort_fields = ['created_at','title', 'task_status','priority']
         if sort_by not in valid_sort_fields:
             sort_by = 'created_at'
 
@@ -314,9 +314,23 @@ def create_app():
             query += " AND t.due_date <= %s"
             params.append(due_date_to)
         
-        # Add sorting
-        query += f" ORDER BY t.{sort_by} {sort_direction}"
-
+        if sort_by == 'priority':
+            # Custom order for priority with specified direction
+            order_direction = 'ASC' if sort_order.lower() == 'asc' else 'DESC'
+            query += """
+                ORDER BY 
+                    CASE t.task_priority
+                        WHEN 'low' THEN 1
+                        WHEN 'medium' THEN 2
+                        WHEN 'high' THEN 3
+                        WHEN 'urgent' THEN 4
+                        ELSE 5
+                    END {direction},
+                    t.created_at DESC
+            """.format(direction=order_direction)
+        else:
+            # Regular sorting for other fields
+            query += f" ORDER BY t.{sort_by} {sort_direction}"
         try:
             with db_connection.cursor() as cursor:
                 cursor.execute(query, params)
