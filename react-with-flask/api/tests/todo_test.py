@@ -366,6 +366,17 @@ class TestTodoTask:
         # Check that ORDER BY title ASC is in the query
         assert "ORDER BY t.title ASC" in query
         assert response.status_code == 200
+
+        response = client.get("/todos?sort_by=title&sort_order=desc")
+        
+        # Verify the SQL query contains the correct ORDER BY clause
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        
+        # Check that ORDER BY title DESC is in the query
+        assert "ORDER BY t.title DESC" in query
+        assert response.status_code == 200
     
     
     def test_sort_task_by_task_status(self, authenticated_client, mock_db_connection):
