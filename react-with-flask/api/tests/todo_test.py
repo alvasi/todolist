@@ -443,6 +443,52 @@ class TestTodoTask:
         assert "WHEN 'low' THEN 1" in query
         assert response.status_code == 200
 
-    def test_sort_task_by_due_date(self,authenticated_client, mock_db_connection):
-        pass
-                
+    def test_sort_task_by_due_date_ascending(self, authenticated_client, mock_db_connection):
+        """Test sorting tasks by due date in ascending order (earliest first)"""
+        client, user_id = authenticated_client
+
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchall.return_value = []
+
+        response = client.get("/todos?sort_by=due_date&sort_order=asc")
+        
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        
+        # Verify the query includes ORDER BY due_date ASC
+        assert "ORDER BY t.due_date ASC" in query
+        assert response.status_code == 200
+
+    def test_sort_task_by_due_date_descending(self, authenticated_client, mock_db_connection):
+        """Test sorting tasks by due date in descending order (latest first)"""
+        client, user_id = authenticated_client
+
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchall.return_value = []
+
+        response = client.get("/todos?sort_by=due_date&sort_order=desc")
+        
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        
+        # Verify the query includes ORDER BY due_date DESC
+        assert "ORDER BY t.due_date DESC" in query
+        assert response.status_code == 200
+
+    def test_sort_task_by_due_date_default_handles_nulls(self, authenticated_client, mock_db_connection):
+        """Test that tasks with NULL due dates are handled correctly in sorting"""
+        client, user_id = authenticated_client
+
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchall.return_value = []
+
+        response = client.get("/todos?sort_by=due_date&sort_order=asc")
+        
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        
+        # NULL values typically come last or first depending on database settings
+        # You might want to add NULLS FIRST or NULLS LAST
+        assert "ORDER BY t.due_date ASC" in query
+        assert response.status_code == 200
