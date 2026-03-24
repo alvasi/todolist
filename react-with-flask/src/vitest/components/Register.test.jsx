@@ -61,9 +61,19 @@ describe('Register Component', () => {
         })
 
         it('should show loading state when submitting', async () => {
-            // Mock a delayed response
+            // Mock a delayed response that resolves to a response-like object
             mockFetch.mockImplementationOnce(
-                () => new Promise((resolve) => setTimeout(resolve, 100))
+                () =>
+                    new Promise((resolve) =>
+                        setTimeout(
+                            () =>
+                                resolve({
+                                    ok: true,
+                                    json: async () => ({ message: 'delayed' }),
+                                }),
+                            100
+                        )
+                    )
             )
 
             renderRegister()
