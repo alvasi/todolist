@@ -439,7 +439,7 @@ class TestTodoTask:
         ]
         mock_cursor = self._setup_mock_cursor(mock_db_connection)
         
-        response = client.get("/todos?team_id=team_2")
+        response = client.get("/todos?team_id=team-2")
         
         # Verify the query includes status filter
         mock_cursor.execute.assert_called_once()
@@ -447,20 +447,20 @@ class TestTodoTask:
         params = mock_cursor.execute.call_args[0][1]
         
         assert "AND t.team_id = %s" in query
-        assert "team_2" in params
+        assert "team-2" in params
         
         # Set the mock return value after verifying the query
         # Filter the mock results to only return tasks with the requested status
-        filtered_results = [task for task in mock_joined_results if task[9] == "team_2"]
+        filtered_results = [task for task in mock_joined_results if task[9] == "team-2"]
         mock_cursor.fetchall.return_value = filtered_results
         
         # Make the actual request (or re-execute if needed)
-        response = client.get("/todos?team_id=team_2")
+        response = client.get("/todos?team_id=team-2")
         data = response.get_json()
         
         assert response.status_code == 200
         assert len(data["tasks"]) == 1
         assert data["tasks"][0]["title"] == "Task 3"
-        assert data["tasks"][0]["team_id"] == "team_2"
+        assert data["tasks"][0]["team_id"] == "team-2"
 
                 

@@ -267,6 +267,7 @@ def create_app():
         # Get query parameters
         status = request.args.get('status')
         priority = request.args.get('priority')
+        team_id = request.args.get('team_id')
         
         # Build base query
         query = """
@@ -287,6 +288,10 @@ def create_app():
         if priority:
             query += " AND t.task_priority = %s"
             params.append(priority)
+
+        if team_id:
+            query += "AND t.team_id = %s"
+            params.append(team_id)
         
         try:
             with db_connection.cursor() as cursor:
