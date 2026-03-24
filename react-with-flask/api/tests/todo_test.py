@@ -122,7 +122,10 @@ class TestTodoTask:
         mock_cursor = self._setup_mock_cursor(mock_db_connection)
         
         # Mock fetchone for INSERT RETURNING id
-        mock_cursor.fetchone.return_value = (task_id,)
+        mock_cursor.fetchone.side_effect = [
+            (task_id,),    # Task created
+            None           # Collaborator inserted (if fetchone is called)
+        ]
         
         response = client.post(
             "/todos",
@@ -135,20 +138,97 @@ class TestTodoTask:
         assert response.status_code == 201
         assert data["message"] == "Task created successfully"
         assert data["task_id"] == task_id
+    
+    def test_create_task_adds_creator_as_collaborator(self, authenticated_client, mock_db_connection):
+        """Test creating a new task adds creator as owner collaborator"""
+        client, user_id = authenticated_client
         
-        # Verify the INSERT query was executed correctly
+        task_data = {
+            "title": "Complete project",
+            "team_id": "123e4567-e89b-12d3-a456-426614174002"
+        }
+        
+        task_id = "123e4567-e89b-12d3-a456-426614174000"
+        
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchone.side_effect = [
+            (task_id,),    # Task created
+            None           # Collaborator inserted (no return needed)
+        ]
+        
+        response = client.post("/todos", json=task_data)
+        
+        assert response.status_code == 201
+        
+        # Verify task was inserted
+        task_insert_call = mock_cursor.execute.call_args_list[0]
+        assert "INSERT INTO tasks" in task_insert_call[0][0]
+        
+        # Verify collaborator was added
+        collaborator_insert_call = mock_cursor.execute.call_args_list[1]
+        assert "INSERT INTO task_collaborators" in collaborator_insert_call[0][0]
+        params = collaborator_insert_call[0][1]
+        assert params[0] == task_id  # task_id
+        assert params[1] == user_id  # user_id
+        assert params[2] == 'owner'  # permission
+        assert params[3] == user_id  # added_by_id
+
+    def test_get_task_returns_tasks_where_user_is_collaborator(self, authenticated_client, mock_db_connection):
+        """Test retrieving all tasks where user is a collaborator"""
+        client, user_id = authenticated_client
+        
+        # Mock tasks with collaborator data
+        mock_tasks = [
+            (
+                "123e4567-e89b-12d3-a456-426614174000",
+                "Task 1",
+                "Description 1",
+                date(2026, 3, 30),
+                "in_progress",
+                "high",
+                False,
+                "team-1",
+                datetime(2026, 3, 25, tzinfo=timezone.utc),
+                datetime(2026, 3, 25, tzinfo=timezone.utc),
+                "owner"
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174001",
+                "Task 2",
+                "Description 2",
+                date(2026, 4, 1),
+                "not_started",
+                "medium",
+                True,
+                "team-1",
+                datetime(2026, 3, 26, tzinfo=timezone.utc),
+                datetime(2026, 3, 26, tzinfo=timezone.utc),
+                "edit"
+            )
+        ]
+
+        mock_task_collaborator = [
+            
+        ]
+        
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchall.return_value = mock_tasks
+        
+        # get all task_id where user_id is client user_id
+        # retrieve tasks from for list of task_id
+        response = client.get("/todos")
+        data = response.get_json()
+        
+        assert response.status_code == 200
+        assert len(data["tasks"]) == 2
+        assert data["tasks"][0]["title"] == "Task 1"
+        assert data["tasks"][0]["permission"] == "owner"
+        assert data["tasks"][1]["title"] == "Task 2"
+        assert data["tasks"][1]["permission"] == "edit"
+        
+        # Verify query joins with task_collaborators
         mock_cursor.execute.assert_called_once()
-        call_args = mock_cursor.execute.call_args[0]
-        query = call_args[0]
-        params = call_args[1]
-        
-        assert "INSERT INTO tasks" in query
-        assert params[0] == task_data["title"]
-        assert params[1] == task_data["task_description"]
-        assert params[2] == task_data["due_date"]
-        assert params[3] == task_data["task_status"]
-        assert params[4] == task_data["task_priority"]
-        assert params[5] == task_data["is_private"]
-        assert params[6] == user_id  # created_by_id
-        assert params[7] == user_id  # updated_by_id
-        assert params[8] == task_data["team_id"]
+        query = mock_cursor.execute.call_args[0][0]
+        assert "INNER JOIN task_collaborators" in query
+        assert "WHERE tc.user_id = %s" in query
+

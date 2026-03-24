@@ -338,6 +338,15 @@ def create_app():
                 )
                 db_connection.commit()
                 task_id = cursor.fetchone()[0]
+
+                # Add creator as owner collaborator
+                cursor.execute(
+                    """
+                    INSERT INTO task_collaborators (task_id, user_id, permission, added_by_id)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (task_id, user_id, 'owner', user_id)
+                )
                 
                 return jsonify({
                     "message": "Task created successfully",
