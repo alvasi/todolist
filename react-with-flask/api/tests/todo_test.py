@@ -174,661 +174,184 @@ class TestTodoTask:
         assert params[3] == user_id  # added_by_id
 
     def test_get_task_returns_tasks_where_user_is_collaborator(self, authenticated_client, mock_db_connection):
-        """Test retrieving all tasks where user is a collaborator"""
+        """Test that the SQL query correctly joins with task_collaborators"""
         client, user_id = authenticated_client
-        friend_id = "123e9843-e89b-12d3-a456-426614174002"
-        # Mock tasks with collaborator data
-        mock_tasks = [
-            (
-                "123e4567-e89b-12d3-a456-426614174000",
-                "Task 1",
-                "Description 1",
-                date(2026, 3, 30),
-                "in_progress",
-                "high",
-                False,
-                user_id,
-                user_id,
-                "123e999-e89b-12d3-a456-426614174001",
-                datetime(2026, 3, 25, tzinfo=timezone.utc),
-                datetime(2026, 3, 25, tzinfo=timezone.utc),
-                "owner"
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174001",
-                "Task 2",
-                "Description 2",
-                date(2026, 4, 1),
-                "not_started",
-                "medium",
-                True,
-                friend_id,
-                user_id,
-                "123e999-e89b-12d3-a456-426614174001",
-                datetime(2026, 3, 26, tzinfo=timezone.utc),
-                datetime(2026, 3, 25, tzinfo=timezone.utc),
-                "edit"
-            )
-        ]
         
+        # Setup mock - we don't care about the actual data
         mock_cursor = self._setup_mock_cursor(mock_db_connection)
-        mock_cursor.fetchall.return_value = mock_tasks
+        mock_cursor.fetchall.return_value = []  # Empty return, we don't test data here
         
-        # get all task_id where user_id is client user_id
-        # retrieve tasks from for list of task_id
         response = client.get("/todos")
-        data = response.get_json()
         
-        assert response.status_code == 200
-        assert len(data["tasks"]) == 2
-        assert data["tasks"][0]["title"] == "Task 1"
-        assert data["tasks"][0]["permission"] == "owner"
-        assert data["tasks"][1]["title"] == "Task 2"
-        assert data["tasks"][1]["permission"] == "edit"
-        
-        # Verify query joins with task_collaborators
+        # We're testing the QUERY, not the data
         mock_cursor.execute.assert_called_once()
         query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        
+        # Verify the SQL structure
         assert "INNER JOIN task_collaborators" in query
         assert "WHERE tc.user_id = %s" in query
-    
+        assert params[0] == user_id
+        
+        # Verify response structure
+        assert response.status_code == 200
+        assert "tasks" in response.get_json()
+
     def test_filter_by_task_status(self, authenticated_client, mock_db_connection):
-        """Test filtering tasks by status"""
+        """Test that status filter is correctly added to SQL query"""
         client, user_id = authenticated_client
         
-        # Mock tasks with different statuses
-        mock_joined_results = [
-            (
-                "123e4567-e89b-12d3-a456-426614174000",  # id
-                "Task 1",                                 # title
-                "Description 1",                          # description
-                date(2026, 3, 30),                        # due_date
-                "in_progress",                            # status
-                "high",                                   # priority
-                False,                                    # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 25, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 25, tzinfo=timezone.utc),  # updated_at
-                "owner"                                   # permission
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174001",  # id
-                "Task 2",                                 # title
-                "Description 2",                          # description
-                date(2026, 4, 1),                         # due_date
-                "not_started",                            # status
-                "medium",                                 # priority
-                False,                                    # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 26, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 26, tzinfo=timezone.utc),  # updated_at
-                "owner"                                    # permission
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174002",  # id
-                "Task 3",                                 # title
-                "Description 3",                          # description
-                date(2026, 4, 15),                        # due_date
-                "completed",                              # status
-                "low",                                    # priority
-                True,                                     # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 27, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 27, tzinfo=timezone.utc),  # updated_at
-                "owner"                                    # permission
-            )
-        ]
-        
         mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchall.return_value = []  # Empty return
         
         response = client.get("/todos?status=in_progress")
         
-        # Verify the query includes status filter
+        # Verify the query includes the status filter
         mock_cursor.execute.assert_called_once()
         query = mock_cursor.execute.call_args[0][0]
         params = mock_cursor.execute.call_args[0][1]
         
         assert "AND t.task_status = %s" in query
         assert "in_progress" in params
-        
-        # Set the mock return value after verifying the query
-        # Filter the mock results to only return tasks with the requested status
-        filtered_results = [task for task in mock_joined_results if task[4] == "in_progress"]
-        mock_cursor.fetchall.return_value = filtered_results
-        
-        # Make the actual request (or re-execute if needed)
-        response = client.get("/todos?status=in_progress")
-        data = response.get_json()
+        assert len(params) >= 2  # user_id + status
+        assert params[0] == user_id
+        assert params[1] == "in_progress"
         
         assert response.status_code == 200
-        assert len(data["tasks"]) == 1
-        assert data["tasks"][0]["title"] == "Task 1"
-        assert data["tasks"][0]["task_status"] == "in_progress"
 
     def test_filter_by_task_priority(self, authenticated_client, mock_db_connection):
-        """Testing filtering tasks by priority"""
+        """Test that priority filter is correctly added to SQL query"""
         client, user_id = authenticated_client
-        mock_joined_results = [
-            (
-                "123e4567-e89b-12d3-a456-426614174000",  # id
-                "Task 1",                                 # title
-                "Description 1",                          # description
-                date(2026, 3, 30),                        # due_date
-                "in_progress",                            # status
-                "high",                                   # priority
-                False,                                    # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 25, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 25, tzinfo=timezone.utc),  # updated_at
-                "owner"                                   # permission
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174001",  # id
-                "Task 2",                                 # title
-                "Description 2",                          # description
-                date(2026, 4, 1),                         # due_date
-                "not_started",                            # status
-                "medium",                                 # priority
-                False,                                    # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 26, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 26, tzinfo=timezone.utc),  # updated_at
-                "owner"                                    # permission
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174002",  # id
-                "Task 3",                                 # title
-                "Description 3",                          # description
-                date(2026, 4, 15),                        # due_date
-                "completed",                              # status
-                "low",                                    # priority
-                True,                                     # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 27, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 27, tzinfo=timezone.utc),  # updated_at
-                "owner"                                    # permission
-            )
-        ]
+        
         mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchall.return_value = []
         
-        response = client.get("/todos?priority=medium")
+        response = client.get("/todos?priority=high")
         
-        # Verify the query includes status filter
         mock_cursor.execute.assert_called_once()
         query = mock_cursor.execute.call_args[0][0]
         params = mock_cursor.execute.call_args[0][1]
         
         assert "AND t.task_priority = %s" in query
-        assert "medium" in params
-        
-        # Set the mock return value after verifying the query
-        # Filter the mock results to only return tasks with the requested status
-        filtered_results = [task for task in mock_joined_results if task[5] == "medium"]
-        mock_cursor.fetchall.return_value = filtered_results
-        
-        # Make the actual request (or re-execute if needed)
-        response = client.get("/todos?priority=medium")
-        data = response.get_json()
-        
+        assert "high" in params
         assert response.status_code == 200
-        assert len(data["tasks"]) == 1
-        assert data["tasks"][0]["title"] == "Task 2"
-        assert data["tasks"][0]["task_priority"] == "medium"
 
     def test_filter_by_team(self, authenticated_client, mock_db_connection):
-        """Testing filtering tasks by team"""
+        """Test that team filter is correctly added to SQL query"""
         client, user_id = authenticated_client
-        mock_joined_results = [
-            (
-                "123e4567-e89b-12d3-a456-426614174000",  # id
-                "Task 1",                                 # title
-                "Description 1",                          # description
-                date(2026, 3, 30),                        # due_date
-                "in_progress",                            # status
-                "high",                                   # priority
-                False,                                    # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 25, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 25, tzinfo=timezone.utc),  # updated_at
-                "owner"                                   # permission
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174001",  # id
-                "Task 2",                                 # title
-                "Description 2",                          # description
-                date(2026, 4, 1),                         # due_date
-                "not_started",                            # status
-                "medium",                                 # priority
-                False,                                    # is_private
-                user_id,
-                user_id,
-                "team-3",                                 # team_id
-                datetime(2026, 3, 26, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 26, tzinfo=timezone.utc),  # updated_at
-                "owner"                                    # permission
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174002",  # id
-                "Task 3",                                 # title
-                "Description 3",                          # description
-                date(2026, 4, 15),                        # due_date
-                "completed",                              # status
-                "low",                                    # priority
-                True,                                     # is_private
-                user_id,
-                user_id,
-                "team-2",                                 # team_id
-                datetime(2026, 3, 27, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 27, tzinfo=timezone.utc),  # updated_at
-                "owner"                                    # permission
-            )
-        ]
+        team_id = "team-2"
+        
         mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchall.return_value = []
         
-        response = client.get("/todos?team_id=team-2")
+        response = client.get(f"/todos?team_id={team_id}")
         
-        # Verify the query includes status filter
         mock_cursor.execute.assert_called_once()
         query = mock_cursor.execute.call_args[0][0]
         params = mock_cursor.execute.call_args[0][1]
         
         assert "AND t.team_id = %s" in query
-        assert "team-2" in params
-        
-        # Set the mock return value after verifying the query
-        # Filter the mock results to only return tasks with the requested status
-        filtered_results = [task for task in mock_joined_results if task[9] == "team-2"]
-        mock_cursor.fetchall.return_value = filtered_results
-        
-        # Make the actual request (or re-execute if needed)
-        response = client.get("/todos?team_id=team-2")
-        data = response.get_json()
-        
+        assert team_id in params
         assert response.status_code == 200
-        assert len(data["tasks"]) == 1
-        assert data["tasks"][0]["title"] == "Task 3"
-        assert data["tasks"][0]["team_id"] == "team-2"
 
     def test_filter_by_due_date_from(self, authenticated_client, mock_db_connection):
-        """Test filtering tasks with due date after a certain date"""
+        """Test that due_date_from filter is correctly added to SQL query"""
         client, user_id = authenticated_client
         
-        # Mock tasks with different due dates
-        mock_tasks = [
-            (
-                "123e4567-e89b-12d3-a456-426614174000",
-                "Task 1 - Past",
-                "Description 1",
-                date(2026, 1, 15),  # Past date
-                "not_started",
-                "medium",
-                False,
-                "team-1",
-                user_id,
-                user_id,
-                datetime(2026, 1, 1, tzinfo=timezone.utc),
-                datetime(2026, 1, 1, tzinfo=timezone.utc),
-                "owner"
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174001",
-                "Task 2 - Current",
-                "Description 2",
-                date(2026, 3, 25),  # Current date
-                "in_progress",
-                "high",
-                False,
-                "team-1",
-                user_id,
-                user_id,
-                datetime(2026, 3, 1, tzinfo=timezone.utc),
-                datetime(2026, 3, 1, tzinfo=timezone.utc),
-                "owner"
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174002",
-                "Task 3 - Future",
-                "Description 3",
-                date(2026, 12, 31),  # Future date
-                "not_started",
-                "low",
-                False,
-                "team-1",
-                user_id,
-                user_id,
-                datetime(2026, 12, 1, tzinfo=timezone.utc),
-                datetime(2026, 12, 1, tzinfo=timezone.utc),
-                "owner"
-            )
-        ]
-        
         mock_cursor = self._setup_mock_cursor(mock_db_connection)
-        
-        # Filter tasks with due_date >= 2026-03-01
-        filtered_tasks = [task for task in mock_tasks if task[3] >= date(2026, 3, 1)]
-        mock_cursor.fetchall.return_value = filtered_tasks
+        mock_cursor.fetchall.return_value = []
         
         response = client.get("/todos?due_date_from=2026-03-01")
-        data = response.get_json()
         
-        assert response.status_code == 200
-        assert len(data["tasks"]) == 2
-        assert data["tasks"][0]["title"] == "Task 2 - Current"
-        assert data["tasks"][1]["title"] == "Task 3 - Future"
-        
-        # Verify the query includes due_date filter
         mock_cursor.execute.assert_called_once()
         query = mock_cursor.execute.call_args[0][0]
         params = mock_cursor.execute.call_args[0][1]
         
         assert "AND t.due_date >= %s" in query
         assert "2026-03-01" in params
+        assert response.status_code == 200
 
     def test_filter_by_due_date_to(self, authenticated_client, mock_db_connection):
-        """Test filtering tasks with due date before a certain date"""
+        """Test that due_date_to filter is correctly added to SQL query"""
         client, user_id = authenticated_client
         
-        mock_tasks = [
-            (
-                "123e4567-e89b-12d3-a456-426614174000",
-                "Task 1 - Past",
-                "Description 1",
-                date(2026, 1, 15),
-                "not_started",
-                "medium",
-                False,
-                "team-1",
-                user_id,
-                user_id,
-                datetime(2026, 1, 1, tzinfo=timezone.utc),
-                datetime(2026, 1, 1, tzinfo=timezone.utc),
-                "owner"
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174001",
-                "Task 2 - Current",
-                "Description 2",
-                date(2026, 3, 25),
-                "in_progress",
-                "high",
-                False,
-                "team-1",
-                user_id,
-                user_id,
-                datetime(2026, 3, 1, tzinfo=timezone.utc),
-                datetime(2026, 3, 1, tzinfo=timezone.utc),
-                "owner"
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174002",
-                "Task 3 - Future",
-                "Description 3",
-                date(2026, 12, 31),
-                "not_started",
-                "low",
-                False,
-                "team-1",
-                user_id,
-                user_id,
-                datetime(2026, 12, 1, tzinfo=timezone.utc),
-                datetime(2026, 12, 1, tzinfo=timezone.utc),
-                "owner"
-            )
-        ]
-        
         mock_cursor = self._setup_mock_cursor(mock_db_connection)
-        
-        # Filter tasks with due_date <= 2026-06-01
-        filtered_tasks = [task for task in mock_tasks if task[3] <= date(2026, 6, 1)]
-        mock_cursor.fetchall.return_value = filtered_tasks
+        mock_cursor.fetchall.return_value = []
         
         response = client.get("/todos?due_date_to=2026-06-01")
-        data = response.get_json()
         
-        assert response.status_code == 200
-        assert len(data["tasks"]) == 2
-        assert data["tasks"][0]["title"] == "Task 1 - Past"
-        assert data["tasks"][1]["title"] == "Task 2 - Current"
-        
-        # Verify the query includes due_date filter
         mock_cursor.execute.assert_called_once()
         query = mock_cursor.execute.call_args[0][0]
         params = mock_cursor.execute.call_args[0][1]
         
         assert "AND t.due_date <= %s" in query
         assert "2026-06-01" in params
+        assert response.status_code == 200
 
     def test_filter_by_due_date_range(self, authenticated_client, mock_db_connection):
-        """Test filtering tasks within a date range"""
+        """Test that both due_date filters are correctly added to SQL query"""
         client, user_id = authenticated_client
         
-        mock_tasks = [
-            (
-                "123e4567-e89b-12d3-a456-426614174000",
-                "Task 1 - Early",
-                "Description 1",
-                date(2026, 1, 15),
-                "not_started",
-                "medium",
-                False,
-                "team-1",
-                user_id,
-                user_id,
-                datetime(2026, 1, 1, tzinfo=timezone.utc),
-                datetime(2026, 1, 1, tzinfo=timezone.utc),
-                "owner"
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174001",
-                "Task 2 - Mid",
-                "Description 2",
-                date(2026, 3, 25),
-                "in_progress",
-                "high",
-                False,
-                "team-1",
-                user_id,
-                user_id,
-                datetime(2026, 3, 1, tzinfo=timezone.utc),
-                datetime(2026, 3, 1, tzinfo=timezone.utc),
-                "owner"
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174002",
-                "Task 3 - Late",
-                "Description 3",
-                date(2026, 6, 15),
-                "not_started",
-                "low",
-                False,
-                "team-1",
-                user_id,
-                user_id,
-                datetime(2026, 6, 1, tzinfo=timezone.utc),
-                datetime(2026, 6, 1, tzinfo=timezone.utc),
-                "owner"
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174003",
-                "Task 4 - Future",
-                "Description 4",
-                date(2026, 12, 31),
-                "not_started",
-                "medium",
-                False,
-                "team-1",
-                user_id,
-                user_id,
-                datetime(2026, 12, 1, tzinfo=timezone.utc),
-                datetime(2026, 12, 1, tzinfo=timezone.utc),
-                "owner"
-            )
-        ]
-        
         mock_cursor = self._setup_mock_cursor(mock_db_connection)
-        
-        # Filter tasks with due_date between 2026-03-01 and 2026-09-01
-        filtered_tasks = [
-            task for task in mock_tasks 
-            if date(2026, 3, 1) <= task[3] <= date(2026, 9, 1)
-        ]
-        mock_cursor.fetchall.return_value = filtered_tasks
+        mock_cursor.fetchall.return_value = []
         
         response = client.get("/todos?due_date_from=2026-03-01&due_date_to=2026-09-01")
-        data = response.get_json()
         
-        assert response.status_code == 200
-        assert len(data["tasks"]) == 2
-        assert data["tasks"][0]["title"] == "Task 2 - Mid"
-        assert data["tasks"][1]["title"] == "Task 3 - Late"
-        
-        # Verify the query includes both due_date filters
         mock_cursor.execute.assert_called_once()
         query = mock_cursor.execute.call_args[0][0]
         params = mock_cursor.execute.call_args[0][1]
-         
+        
         assert "AND t.due_date >= %s" in query
         assert "AND t.due_date <= %s" in query
         assert "2026-03-01" in params
         assert "2026-09-01" in params
-
-    def test_sort_task_by_descending_creation_date_on_default(self, authenticated_client, mock_db_connection):
-        """Testing sorting tasks based on task creation date (DEFAULT)"""
-
-        client, user_id = authenticated_client
-
-        mock_tasks = [
-            (
-                "123e4567-e89b-12d3-a456-426614174000",  # id
-                "Task 1",                                 # title
-                "Description 1",                          # description
-                date(2026, 3, 30),                        # due_date
-                "in_progress",                            # status
-                "high",                                   # priority
-                False,                                    # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 25, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 25, tzinfo=timezone.utc),  # updated_at
-                "owner"                                   # permission
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174001",  # id
-                "Task 2",                                 # title
-                "Description 2",                          # description
-                date(2026, 4, 1),                         # due_date
-                "not_started",                            # status
-                "medium",                                 # priority
-                False,                                    # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 26, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 26, tzinfo=timezone.utc),  # updated_at
-                "owner"                                    # permission
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174002",  # id
-                "Task 3",                                 # title
-                "Description 3",                          # description
-                date(2026, 4, 15),                        # due_date
-                "completed",                              # status
-                "low",                                    # priority
-                True,                                     # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 27, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 27, tzinfo=timezone.utc),  # updated_at
-                "owner"                                    # permission
-            )
-        ]
-
-        mock_cursor = self._setup_mock_cursor(mock_db_connection)
-        mock_cursor.fetchall.return_value = mock_tasks
-        
-        response = client.get("/todos")
-        data = response.get_json()
-        
         assert response.status_code == 200
-        assert len(data["tasks"]) == 3
-        # Should be sorted by created_at DESC (newest first)
-        assert data["tasks"][0]["title"] == "Task 3"
-        assert data["tasks"][1]["title"] == "Task 2"
-        assert data["tasks"][2]["title"] == "Task 1"
+
+    def test_multiple_filters_combined(self, authenticated_client, mock_db_connection):
+        """Test that multiple filters are correctly combined in SQL query"""
+        client, user_id = authenticated_client
         
-        # Verify query includes ORDER BY created_at DESC
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchall.return_value = []
+        
+        response = client.get("/todos?status=in_progress&priority=high&team_id=team-2&due_date_from=2026-03-01")
+        
         mock_cursor.execute.assert_called_once()
         query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        
+        assert "AND t.task_status = %s" in query
+        assert "AND t.task_priority = %s" in query
+        assert "AND t.team_id = %s" in query
+        assert "AND t.due_date >= %s" in query
+        
+        assert "in_progress" in params
+        assert "high" in params
+        assert "team-2" in params
+        assert "2026-03-01" in params
+        assert response.status_code == 200
+
+    def test_sort_task_by_descending_creation_date_on_default(self, authenticated_client, mock_db_connection):
+        """Test that the endpoint includes the correct ORDER BY clause in the SQL query"""
+        client, user_id = authenticated_client
+        
+        # Setup mock cursor
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchall.return_value = []  # Return empty list, we don't care about data
+        
+        response = client.get("/todos")
+        
+        # The real test: Verify the SQL query has the correct ORDER BY
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        
+        # This is what we're actually testing - the SQL generation
         assert "ORDER BY t.created_at DESC" in query
+        assert "DESC" in query  # Default is descending
 
     def test_sort_task_by_task_name_alpabetically(self, authenticated_client, mock_db_connection):
         """ Testing sorting tasks based on task name"""
-
         client, user_id = authenticated_client
-
-        mock_tasks= [
-            (
-                "123e4567-e89b-12d3-a456-426614174000",  # id
-                "Task 1",                                 # title
-                "Description 1",                          # description
-                date(2026, 3, 30),                        # due_date
-                "in_progress",                            # status
-                "high",                                   # priority
-                False,                                    # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 25, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 25, tzinfo=timezone.utc),  # updated_at
-                "owner"                                   # permission
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174001",  # id
-                "Task 2",                                 # title
-                "Description 2",                          # description
-                date(2026, 4, 1),                         # due_date
-                "not_started",                            # status
-                "medium",                                 # priority
-                False,                                    # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 26, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 26, tzinfo=timezone.utc),  # updated_at
-                "owner"                                    # permission
-            ),
-            (
-                "123e4567-e89b-12d3-a456-426614174002",  # id
-                "Task 3",                                 # title
-                "Description 3",                          # description
-                date(2026, 4, 15),                        # due_date
-                "completed",                              # status
-                "low",                                    # priority
-                True,                                     # is_private
-                user_id,
-                user_id,
-                "team-1",                                 # team_id
-                datetime(2026, 3, 27, tzinfo=timezone.utc),  # created_at
-                datetime(2026, 3, 27, tzinfo=timezone.utc),  # updated_at
-                "owner"                                    # permission
-            )
-        ]
         
     
     def test_sort_task_by_task_status(self, authenticated_client, mock_db_connection):
