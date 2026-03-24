@@ -48,6 +48,13 @@ def create_app():
         # Validate required fields
         if not username or not password:
             return jsonify({"message": "Username and password are required"}), 400
+        
+        if username is not None:
+            username = str(username)
+        if password is not None:
+            password = str(password)
+        if alias is not None:
+            alias = str(alias)
 
         # Create a new user object
         colour = "#000000"
