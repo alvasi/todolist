@@ -108,7 +108,77 @@ def create_app():
             return jsonify({"message": "Failed to register user"}), 500
         finally:
             db_connection.close()
+
+    @app.route("/login", methods=["POST"])
+    def login():
+        if request.is_json:
+            data = request.get_json()
+            username = data.get("username")
+            password = data.get("password")
+        else:
+            username = request.form.get("username")
+            password = request.form.get("password")
+
+        if not username or not password:
+            return jsonify({"message": "Username and password are required"}), 400
+        
+        if username is not None:
+            username = str(username)
+        if password is not None:
+            password = str(password)
+        
+        user = {
+            "username": username,
+            "password_hash": password,
+        }
+
+        db_connection = get_db_connection()
+        if db_connection is None:
+            return jsonify({"message": "Database connection failed"}), 500
+        
+        try:
+            with db_connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, username, alias, user_colour, password_hash FROM users WHERE username = %s",
+                    (username,)  # Note the comma to make it a tuple
+                )
+                db_user = cursor.fetchone()
             
+                # Check if user exists
+                if not db_user:
+                    return jsonify({"message": "Invalid username or password"}), 401
+            
+                # Extract user data
+                user_id = db_user[0]
+                db_username = db_user[1]
+                alias = db_user[2]
+                user_colour = db_user[3]
+                password_hash = db_user[4]
+            
+            # Verify password
+            # In production, you should hash passwords and use a proper verification method
+            # For now, compare directly (but this is insecure!)
+                if password != password_hash:
+                    return jsonify({"message": "Invalid username or password"}), 401
+            
+                # Login successful - return user data (excluding password)
+                return jsonify({
+                    "message": "Login successful",
+                    "user": {
+                        "id": user_id,
+                        "username": db_username,
+                        "alias": alias,
+                        "colour": user_colour
+                    }
+                }), 200
+            
+        except Exception as e:
+            print(f"Error in login: {e}")
+            return jsonify({"message": "Login failed"}), 500
+        finally:
+            db_connection.close()
+
+
     @app.route('/static/<path:filename>')
     def serve_static(filename):
         return send_from_directory('static', filename)
