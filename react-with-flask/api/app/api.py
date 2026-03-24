@@ -1,5 +1,6 @@
 import time
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, send_from_directory
+from flask_cors import CORS
 import psycopg
 from psycopg import OperationalError
 from pathlib import Path
@@ -21,58 +22,88 @@ def get_db_connection():
 
 def create_app():
     app = Flask(__name__)
+    # CORS(app)
+    CORS(app, origins=["http://localhost:5173", "http://0.0.0.0:5173"], 
+         supports_credentials=True,
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         allow_headers=["Content-Type", "Authorization"])
 
     @app.route("/")
     def index():
-        return "Hello, World!"
+        return send_from_directory('templates', 'index.html')
 
     @app.route("/register", methods=["POST"])
     def register():
-        if request.method == "POST":
-
-            # Extract user registration data from form
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+            username = data.get("username")
+            password = data.get("password")
+            alias = data.get("alias")
+        else:
             username = request.form.get("username")
             password = request.form.get("password")
             alias = request.form.get("alias")
-            colour = request.form.get("colour")
 
-            # Create a new user object
-            new_user = {
-                "username": username,
-                "password_hash": password,
-                "alias": alias,
-                "user_colour": colour,
-                "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            }
+        # Validate required fields
+        if not username or not password:
+            return jsonify({"message": "Username and password are required"}), 400
 
-            db_connection = get_db_connection()
-            if db_connection is None:
-                return {"message": "Database connection failed"}, 500
-            try:
-                with db_connection.cursor() as cursor:
-                    # Save the new user to the database
-                    cursor.execute(
-                        """
-                        INSERT INTO users (username, password_hash, alias, user_colour, created_at)
-                        VALUES (%s, %s, %s, %s, %s)
-                        RETURNING id
-                        """,
-                        (
-                            new_user["username"],
-                            new_user["password_hash"],
-                            new_user["alias"],
-                            new_user["user_colour"],
-                            new_user["created_at"],
-                        ),
-                    )
-                    db_connection.commit()
-                    if cursor.fetchone.side_effect:
-                        return {"message": "Username already taken"}, 409
-                    user_id = cursor.fetchone()[0]
-            except Exception as e:
-                print(f"Error saving user to database: {e}")
-                return {"message": "Failed to register user"}, 500
+        # Create a new user object
+        colour = "#000000"
+        new_user = {
+            "username": username,
+            "password_hash": password,
+            "alias": alias,
+            "user_colour": colour,
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
 
-        return {"message": "User registered successfully", "user_id": user_id}, 201
+        db_connection = get_db_connection()
+        if db_connection is None:
+            return jsonify({"message": "Database connection failed"}), 500
+        
+        try:
+            with db_connection.cursor() as cursor:
+                # Check if username already exists - FIXED: No RETURNING id
+                cursor.execute(
+                    "SELECT id FROM users WHERE username = %s",
+                    (new_user["username"],)
+                )
+                existing_user = cursor.fetchone()
+                
+                if existing_user:
+                    # User exists, return 409
+                    return jsonify({"message": "Username already taken"}), 409
+                
+                # User doesn't exist, create them
+                cursor.execute(
+                    """
+                    INSERT INTO users (username, password_hash, alias, user_colour, created_at)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (
+                        new_user["username"],
+                        new_user["password_hash"],
+                        new_user["alias"],
+                        new_user["user_colour"],
+                        new_user["created_at"],
+                    ),
+                )
+                db_connection.commit()
+                user_id = cursor.fetchone()[0]
+                
+                return jsonify({"message": "User registered successfully", "user_id": user_id}), 201
+                
+        except Exception as e:
+            print(f"Error in register: {e}")
+            return jsonify({"message": "Failed to register user"}), 500
+        finally:
+            db_connection.close()
+            
+    @app.route('/static/<path:filename>')
+    def serve_static(filename):
+        return send_from_directory('static', filename)
 
     return app
