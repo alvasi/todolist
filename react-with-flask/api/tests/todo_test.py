@@ -379,6 +379,7 @@ class TestTodoTask:
     
     
     def test_sort_task_by_task_status(self, authenticated_client, mock_db_connection):
+        """Testing sorting tasks based on task status"""
         client, user_id = authenticated_client
 
         mock_cursor = self._setup_mock_cursor(mock_db_connection)
@@ -407,7 +408,40 @@ class TestTodoTask:
         assert response.status_code == 200
 
     def test_sort_task_by_task_priority(self, authenticated_client, mock_db_connection):
-        pass
+        client, user_id = authenticated_client
+
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchall.return_value = []
+
+        # archived, completed, in progress, not started
+        response = client.get("/todos?sort_by=task_priority&sort_order=asc")
+        
+        # Verify the SQL query contains the correct ORDER BY clause
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        
+        # Check for priority custom ordering
+        assert "CASE t.task_priority" in query
+        assert "WHEN 'low' THEN 1" in query
+        assert "WHEN 'medium' THEN 2" in query
+        assert "WHEN 'high' THEN 3" in query
+        assert "WHEN 'urgent' THEN 4" in query
+        assert response.status_code == 200
+
+        response = client.get("/todos?sort_by=task_priority&sort_order=desc")
+        
+        # Verify the SQL query contains the correct ORDER BY clause
+        query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        
+        # Check that ORDER BY title DESC is in the query
+        assert "CASE t.task_priority" in query
+        assert "WHEN 'urgent' THEN 4" in query
+        assert "WHEN 'high' THEN 3" in query
+        assert "WHEN 'medium' THEN 2" in query
+        assert "WHEN 'low' THEN 1" in query
+        assert response.status_code == 200
 
     def test_sort_task_by_due_date(self,authenticated_client, mock_db_connection):
         pass
