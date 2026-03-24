@@ -270,6 +270,17 @@ def create_app():
         team_id = request.args.get('team_id')
         due_date_from = request.args.get('due_date_from')  # YYYY-MM-DD
         due_date_to = request.args.get('due_date_to')      # YYYY-MM-DD
+
+        # Sorting parameters
+        sort_by = request.args.get('sort_by', 'created_at') 
+        sort_order = request.args.get('sort_order', 'desc')  # asc or desc
+
+        valid_sort_fields = ['created_at']
+        if sort_by not in valid_sort_fields:
+            sort_by = 'created_at'
+
+        # Validate sort_order
+        sort_direction = 'DESC' if sort_order.lower() == 'desc' else 'ASC'
         
         # Build base query
         query = """
@@ -304,7 +315,7 @@ def create_app():
             params.append(due_date_to)
         
         # Add sorting
-        query += " ORDER BY t.due_date ASC, t.created_at DESC"  # Sort by due date first
+        query += f" ORDER BY t.{sort_by} {sort_direction}"
 
         try:
             with db_connection.cursor() as cursor:

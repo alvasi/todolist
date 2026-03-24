@@ -352,7 +352,7 @@ class TestTodoTask:
     def test_sort_task_by_task_name_alpabetically(self, authenticated_client, mock_db_connection):
         """ Testing sorting tasks based on task name"""
         client, user_id = authenticated_client
-        
+        pass
     
     def test_sort_task_by_task_status(self, authenticated_client, mock_db_connection):
         pass
