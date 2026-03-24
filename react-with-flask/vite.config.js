@@ -2,21 +2,21 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  plugins: [
-    react({
-      jsxRuntime: 'automatic',
-    })
-  ],
-  server: {
-    port: 5173,
-    host: true,
-    proxy: {
-      '/api': {
-        target: process.env.VITE_API_URL || 'http://127.0.0.1:5001',
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      }
-    }
-  },
+    plugins: [
+        react({
+            jsxRuntime: 'automatic',
+        }),
+    ],
+    server: {
+        port: 5173,
+        host: true,
+        proxy: {
+            '/api': {
+                target: process.env.VITE_API_URL || 'http://127.0.0.1:5001',
+                changeOrigin: true,
+                secure: false,
+                rewrite: (path) => path.replace(/^\/api/, ''),
+            },
+        },
+    },
 })
