@@ -24,14 +24,85 @@ def get_db_connection():
 
 def create_app():
     app = Flask(__name__)
-    # CORS(app)
+    
+    # Session configuration
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+    app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours in seconds
+
     CORS(
         app,
         origins=["http://localhost:5173", "http://0.0.0.0:5173"],
         supports_credentials=True,
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
         allow_headers=["Content-Type", "Authorization"],
     )
+
+    def get_current_user_id():
+        """Get current user ID from session"""
+        return session.get('user_id')
+    
+    def create_personal_team(user_id):
+        db_connection = get_db_connection()
+        if db_connection is None:
+            return jsonify({"message": "Database connection failed"}), 500
+        new_team = {
+            "team_name": "Personal",
+            "team_description": "For your eyes only",
+            "is_personal": True,
+            "created_by_id": user_id,
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        }
+        try:
+            with db_connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO teams (team_name, team_description, is_personal, created_by_id, created_at)
+                    VALUES(%s,%s,%s,%s,%s)
+                    RETURNING id
+                    """
+                    (
+                        new_team["team_name"],
+                        new_team["team_description"],
+                        new_team["is_personal"],
+                        new_team["created_by_id"],
+                        new_team["created_at"]
+                    ),
+                )
+                db_connection.commit()
+                team_id = cursor.fetchone()[0]
+                return team_id
+
+        except Exception as e:
+            print(f"Error in register: {e}")
+            return jsonify({"message": "Failed to register user"}), 500
+        finally:
+            db_connection.close()
+
+    def set_current_user(user_id, username, alias, user_colour):
+        """Set current user in session"""
+        session['user_id'] = user_id
+        session['username'] = username
+        session['alias'] = alias
+        session['user_colour'] = user_colour
+        session.permanent = True  # Make session permanent
+
+    def clear_current_user():
+        """Clear current user from session"""
+        session.clear()
+
+    def login_required(f):
+        """Decorator to require login for routes"""
+        from functools import wraps
+        
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not get_current_user_id():
+                return jsonify({"message": "Authentication required"}), 401
+            return f(*args, **kwargs)
+        return decorated_function
 
     @app.route("/")
     def index():
@@ -104,6 +175,7 @@ def create_app():
                 )
                 db_connection.commit()
                 user_id = cursor.fetchone()[0]
+                team_id = create_personal_team(user_id)
 
                 return (
                     jsonify(
@@ -160,11 +232,10 @@ def create_app():
                 password_hash = db_user[4]
 
                 # Verify password
-                # In production, you should hash passwords and use a proper verification method
-                # For now, compare directly (but this is insecure!)
                 if password != password_hash:
                     return jsonify({"message": "Invalid username or password"}), 401
 
+                set_current_user(user_id=user_id, username=db_username,alias=alias,user_colour=user_colour)
                 # Login successful - return user data (excluding password)
                 return (
                     jsonify(
@@ -184,6 +255,96 @@ def create_app():
         except Exception as e:
             print(f"Error in login: {e}")
             return jsonify({"message": "Login failed"}), 500
+        finally:
+            db_connection.close()
+    
+    @app.route("/todos", methods=["GET"])
+    def get_all_tasks():
+        """Get all tasks for current user"""
+        user_id = get_current_user_id()
+        db_connection = get_db_connection()
+        
+        try:
+            with db_connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT id, title, task_description, due_date, task_status, task_priority, is_private, created_at "
+                    "FROM tasks WHERE created_by_id = %s ORDER BY created_at DESC",
+                    (user_id,)
+                )
+                tasks = cursor.fetchall()
+                
+                return jsonify({
+                    "tasks": [
+                        {
+                            "id": task[0],
+                            "title": task[1],
+                            "description": task[2],
+                            "due_date": task[3],
+                            "status": task[4],
+                            "priority": task[5],
+                            "is_private": task[6],
+                            "created_at": task[7]
+                        }
+                        for task in tasks
+                    ]
+                }), 200
+        except Exception as e:
+            return jsonify({"message": "Failed to fetch tasks"}), 500
+        finally:
+            db_connection.close()
+
+    @app.route("/todos", methods=["POST"])
+    @login_required
+    def create_task():
+        """Create a new task"""
+        data = request.get_json()
+        title = data.get("title")
+        task_description = data.get("task_description")
+        due_date = data.get("due_date")
+        task_status = data.get("task_status")
+        task_priority = data.get("task_priority")
+        is_private = data.get("is_private")
+        team_id = data.get("team_id")
+        
+        user_id = get_current_user_id()
+        created_by_id = user_id
+        updated_by_id = user_id
+        created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        updated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        db_connection = get_db_connection()
+        
+        try:
+            with db_connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO tasks (title, task_description, due_date, task_status, task_priority, 
+                                    is_private, created_by_id, updated_by_id, team_id, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (
+                        title,
+                        task_description,
+                        due_date,
+                        task_status,
+                        task_priority,
+                        is_private,
+                        created_by_id,
+                        updated_by_id,
+                        team_id,
+                        created_at,
+                        updated_at
+                    )
+                )
+                db_connection.commit()
+                task_id = cursor.fetchone()[0]
+                
+                return jsonify({
+                    "message": "Task created successfully",
+                    "task_id": task_id
+                }), 201
+        except Exception as e:
+            return jsonify({"message": "Failed to create task"}), 500
         finally:
             db_connection.close()
 
