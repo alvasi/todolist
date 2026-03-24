@@ -131,6 +131,80 @@ class TestUserRegistration:
         # SELECT1, INSERT1, SELECT2 (no INSERT2 because duplicate)
         assert mock_cursor.execute.call_count == 3
 
-# post request fails if required fields are missing
+    def test_register_fails_if_username_missing(self, client, mock_db_connection):
+        """Test that registration fails when username is missing"""
+        user_data = {
+            "password": "password123",
+            "alias": "Alva",
+        }
+        
+        response = client.post("/register", json=user_data)
+        data = response.get_json()
+        
+        assert response.status_code == 400
+        assert data["message"] == "Username and password are required"
+        mock_db_connection.assert_not_called()
+
+    def test_register_fails_if_password_missing(self, client, mock_db_connection):
+        """Test that registration fails when password is missing"""
+        user_data = {
+            "username": "alva020201",
+            "alias": "Alva",
+        }
+        
+        response = client.post("/register", json=user_data)
+        data = response.get_json()
+        
+        assert response.status_code == 400
+        assert data["message"] == "Username and password are required"
+        mock_db_connection.assert_not_called()
+    
+    def test_register_handles_none_values(self, client, mock_db_connection):
+        """Test that None values are handled appropriately"""
+        user_data = {
+            "username": None,
+            "password": "password123",
+            "alias": "Alva",
+        }
+        
+        response = client.post("/register", json=user_data)
+        data = response.get_json()
+        
+        # None should be treated as missing
+        assert response.status_code == 400
+        assert data["message"] == "Username and password are required"
+
+    def test_register_handles_numeric_alias(self, client, mock_db_connection):
+        """Test that numeric alias is converted to string"""
+        user_data = {
+            "username": "testuser",
+            "password": "password123",
+            "alias": 12345,  # Numeric alias
+        }
+
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        mock_cursor.fetchone.side_effect = [None, (1,)]
+        
+        response = client.post("/register", json=user_data)
+        
+        assert response.status_code == 201
+        
+        # Verify alias was converted to string
+        call_args = mock_cursor.execute.call_args_list
+        insert_call = call_args[1]
+        alias_value = insert_call[0][1][2]  # Third parameter in INSERT
+        assert alias_value == "12345"  # Should be string "12345"
 # password is hashed in the database
 # post request fails if incorrect data types are provided
+
+class TestUserLogin:
+    """Test user login endpoint"""
+# if username not found, message: username not found
+# if password does not match, message: incorrect password
+# login successful if username and password matches the one in db
