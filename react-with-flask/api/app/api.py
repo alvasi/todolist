@@ -275,7 +275,7 @@ def create_app():
         sort_by = request.args.get('sort_by', 'created_at') 
         sort_order = request.args.get('sort_order', 'desc')  # asc or desc
 
-        valid_sort_fields = ['created_at','title']
+        valid_sort_fields = ['created_at','title', 'task_status']
         if sort_by not in valid_sort_fields:
             sort_by = 'created_at'
 

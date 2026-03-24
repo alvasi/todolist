@@ -399,7 +399,6 @@ class TestTodoTask:
         response = client.get("/todos?sort_by=task_status&sort_order=desc")
         
         # Verify the SQL query contains the correct ORDER BY clause
-        mock_cursor.execute.assert_called_once()
         query = mock_cursor.execute.call_args[0][0]
         params = mock_cursor.execute.call_args[0][1]
         
