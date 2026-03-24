@@ -268,6 +268,8 @@ def create_app():
         status = request.args.get('status')
         priority = request.args.get('priority')
         team_id = request.args.get('team_id')
+        due_date_from = request.args.get('due_date_from')  # YYYY-MM-DD
+        due_date_to = request.args.get('due_date_to')      # YYYY-MM-DD
         
         # Build base query
         query = """
@@ -293,6 +295,17 @@ def create_app():
             query += "AND t.team_id = %s"
             params.append(team_id)
         
+        if due_date_from:
+            query += " AND t.due_date >= %s"
+            params.append(due_date_from)
+        
+        if due_date_to:
+            query += " AND t.due_date <= %s"
+            params.append(due_date_to)
+        
+        # Add sorting
+        query += " ORDER BY t.due_date ASC, t.created_at DESC"  # Sort by due date first
+
         try:
             with db_connection.cursor() as cursor:
                 cursor.execute(query, params)
