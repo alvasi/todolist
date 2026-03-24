@@ -700,9 +700,143 @@ class TestTodoTask:
         mock_cursor.execute.assert_called_once()
         query = mock_cursor.execute.call_args[0][0]
         params = mock_cursor.execute.call_args[0][1]
-        
+         
         assert "AND t.due_date >= %s" in query
         assert "AND t.due_date <= %s" in query
         assert "2026-03-01" in params
         assert "2026-09-01" in params
+
+    def test_sort_task_by_descending_creation_date_on_default(self, authenticated_client, mock_db_connection):
+        """Testing sorting tasks based on task creation date (DEFAULT)"""
+
+        client, user_id = authenticated_client
+
+        mock_tasks = [
+            (
+                "123e4567-e89b-12d3-a456-426614174000",  # id
+                "Task 1",                                 # title
+                "Description 1",                          # description
+                date(2026, 3, 30),                        # due_date
+                "in_progress",                            # status
+                "high",                                   # priority
+                False,                                    # is_private
+                user_id,
+                user_id,
+                "team-1",                                 # team_id
+                datetime(2026, 3, 25, tzinfo=timezone.utc),  # created_at
+                datetime(2026, 3, 25, tzinfo=timezone.utc),  # updated_at
+                "owner"                                   # permission
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174001",  # id
+                "Task 2",                                 # title
+                "Description 2",                          # description
+                date(2026, 4, 1),                         # due_date
+                "not_started",                            # status
+                "medium",                                 # priority
+                False,                                    # is_private
+                user_id,
+                user_id,
+                "team-1",                                 # team_id
+                datetime(2026, 3, 26, tzinfo=timezone.utc),  # created_at
+                datetime(2026, 3, 26, tzinfo=timezone.utc),  # updated_at
+                "owner"                                    # permission
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174002",  # id
+                "Task 3",                                 # title
+                "Description 3",                          # description
+                date(2026, 4, 15),                        # due_date
+                "completed",                              # status
+                "low",                                    # priority
+                True,                                     # is_private
+                user_id,
+                user_id,
+                "team-1",                                 # team_id
+                datetime(2026, 3, 27, tzinfo=timezone.utc),  # created_at
+                datetime(2026, 3, 27, tzinfo=timezone.utc),  # updated_at
+                "owner"                                    # permission
+            )
+        ]
+
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        mock_cursor.fetchall.return_value = mock_tasks
+        
+        response = client.get("/todos")
+        data = response.get_json()
+        
+        assert response.status_code == 200
+        assert len(data["tasks"]) == 3
+        # Should be sorted by created_at DESC (newest first)
+        assert data["tasks"][0]["title"] == "Task 3"
+        assert data["tasks"][1]["title"] == "Task 2"
+        assert data["tasks"][2]["title"] == "Task 1"
+        
+        # Verify query includes ORDER BY created_at DESC
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        assert "ORDER BY t.created_at DESC" in query
+
+    def test_sort_task_by_task_name_alpabetically(self, authenticated_client, mock_db_connection):
+        """ Testing sorting tasks based on task name"""
+
+        client, user_id = authenticated_client
+
+        mock_tasks= [
+            (
+                "123e4567-e89b-12d3-a456-426614174000",  # id
+                "Task 1",                                 # title
+                "Description 1",                          # description
+                date(2026, 3, 30),                        # due_date
+                "in_progress",                            # status
+                "high",                                   # priority
+                False,                                    # is_private
+                user_id,
+                user_id,
+                "team-1",                                 # team_id
+                datetime(2026, 3, 25, tzinfo=timezone.utc),  # created_at
+                datetime(2026, 3, 25, tzinfo=timezone.utc),  # updated_at
+                "owner"                                   # permission
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174001",  # id
+                "Task 2",                                 # title
+                "Description 2",                          # description
+                date(2026, 4, 1),                         # due_date
+                "not_started",                            # status
+                "medium",                                 # priority
+                False,                                    # is_private
+                user_id,
+                user_id,
+                "team-1",                                 # team_id
+                datetime(2026, 3, 26, tzinfo=timezone.utc),  # created_at
+                datetime(2026, 3, 26, tzinfo=timezone.utc),  # updated_at
+                "owner"                                    # permission
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174002",  # id
+                "Task 3",                                 # title
+                "Description 3",                          # description
+                date(2026, 4, 15),                        # due_date
+                "completed",                              # status
+                "low",                                    # priority
+                True,                                     # is_private
+                user_id,
+                user_id,
+                "team-1",                                 # team_id
+                datetime(2026, 3, 27, tzinfo=timezone.utc),  # created_at
+                datetime(2026, 3, 27, tzinfo=timezone.utc),  # updated_at
+                "owner"                                    # permission
+            )
+        ]
+        
+    
+    def test_sort_task_by_task_status(self, authenticated_client, mock_db_connection):
+        pass
+
+    def test_sort_task_by_task_priority(self, authenticated_client, mock_db_connection):
+        pass
+
+    def test_sort_task_by_due_date(self,authenticated_client, mock_db_connection):
+        pass
                 
