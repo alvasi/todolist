@@ -176,7 +176,7 @@ class TestTodoTask:
     def test_get_task_returns_tasks_where_user_is_collaborator(self, authenticated_client, mock_db_connection):
         """Test retrieving all tasks where user is a collaborator"""
         client, user_id = authenticated_client
-        
+        friend_id = "123e9843-e89b-12d3-a456-426614174002"
         # Mock tasks with collaborator data
         mock_tasks = [
             (
@@ -187,7 +187,9 @@ class TestTodoTask:
                 "in_progress",
                 "high",
                 False,
-                "team-1",
+                user_id,
+                user_id,
+                "123e999-e89b-12d3-a456-426614174001",
                 datetime(2026, 3, 25, tzinfo=timezone.utc),
                 datetime(2026, 3, 25, tzinfo=timezone.utc),
                 "owner"
@@ -200,15 +202,13 @@ class TestTodoTask:
                 "not_started",
                 "medium",
                 True,
-                "team-1",
+                friend_id,
+                user_id,
+                "123e999-e89b-12d3-a456-426614174001",
                 datetime(2026, 3, 26, tzinfo=timezone.utc),
-                datetime(2026, 3, 26, tzinfo=timezone.utc),
+                datetime(2026, 3, 25, tzinfo=timezone.utc),
                 "edit"
             )
-        ]
-
-        mock_task_collaborator = [
-            
         ]
         
         mock_cursor = self._setup_mock_cursor(mock_db_connection)
