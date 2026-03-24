@@ -123,7 +123,7 @@ def create_app():
             return jsonify({"message": "Username and password are required"}), 400
         
         if username is not None:
-            username = str(username)
+            username = str(username).strip()
         if password is not None:
             password = str(password)
         
