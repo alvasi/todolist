@@ -4,6 +4,7 @@ This helps tests import the local `app` package (the `app/` directory) when pyte
 is invoked from environments where the current working directory isn't automatically
 added to sys.path.
 """
+
 import sys
 from pathlib import Path
 
