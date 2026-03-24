@@ -246,6 +246,8 @@ class TestTodoTask:
                 "in_progress",                            # status
                 "high",                                   # priority
                 False,                                    # is_private
+                user_id,
+                user_id,
                 "team-1",                                 # team_id
                 datetime(2026, 3, 25, tzinfo=timezone.utc),  # created_at
                 datetime(2026, 3, 25, tzinfo=timezone.utc),  # updated_at
@@ -259,10 +261,12 @@ class TestTodoTask:
                 "not_started",                            # status
                 "medium",                                 # priority
                 False,                                    # is_private
+                user_id,
+                user_id,
                 "team-1",                                 # team_id
                 datetime(2026, 3, 26, tzinfo=timezone.utc),  # created_at
                 datetime(2026, 3, 26, tzinfo=timezone.utc),  # updated_at
-                "edit"                                    # permission
+                "owner"                                    # permission
             ),
             (
                 "123e4567-e89b-12d3-a456-426614174002",  # id
@@ -272,10 +276,12 @@ class TestTodoTask:
                 "completed",                              # status
                 "low",                                    # priority
                 True,                                     # is_private
+                user_id,
+                user_id,
                 "team-1",                                 # team_id
                 datetime(2026, 3, 27, tzinfo=timezone.utc),  # created_at
                 datetime(2026, 3, 27, tzinfo=timezone.utc),  # updated_at
-                "view"                                    # permission
+                "owner"                                    # permission
             )
         ]
         
@@ -303,4 +309,4 @@ class TestTodoTask:
         assert response.status_code == 200
         assert len(data["tasks"]) == 1
         assert data["tasks"][0]["title"] == "Task 1"
-        assert data["tasks"][0]["status"] == "in_progress"
+        assert data["tasks"][0]["task_status"] == "in_progress"

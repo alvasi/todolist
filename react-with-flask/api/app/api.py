@@ -259,25 +259,33 @@ def create_app():
             db_connection.close()
     
     @app.route("/todos", methods=["GET"])
-    def get_all_tasks():
+    def get_tasks():
         """Get all tasks where user is creator OR collaborator"""
         user_id = get_current_user_id()
         db_connection = get_db_connection()
+
+        # Get query parameters
+        status = request.args.get('status')
+        
+        # Build base query
+        query = """
+            SELECT DISTINCT t.id, t.title, t.task_description, t.due_date, 
+                t.task_status, t.task_priority, t.is_private, t.created_by_id,
+                t.updated_by_id, t.team_id, t.created_at, t.updated_at, tc.permission
+            FROM tasks t
+            INNER JOIN task_collaborators tc ON t.id = tc.task_id
+            WHERE tc.user_id = %s
+        """
+        params = [user_id]
+
+        # Add filters
+        if status:
+            query += " AND t.task_status = %s"
+            params.append(status)
         
         try:
             with db_connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT DISTINCT t.id, t.title, t.task_description, t.due_date, 
-                        t.task_status, t.task_priority, t.is_private, 
-                        t.created_at, t.updated_at, tc.permission
-                    FROM tasks t
-                    INNER JOIN task_collaborators tc ON t.id = tc.task_id
-                    WHERE tc.user_id = %s
-                    ORDER BY t.created_at DESC
-                    """,
-                    (user_id,)
-                )
+                cursor.execute(query, params)
                 tasks = cursor.fetchall()
                 
                 return jsonify({
