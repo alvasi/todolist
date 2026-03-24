@@ -231,4 +231,76 @@ class TestTodoTask:
         query = mock_cursor.execute.call_args[0][0]
         assert "INNER JOIN task_collaborators" in query
         assert "WHERE tc.user_id = %s" in query
-
+    
+    def test_filter_by_task_status(self, authenticated_client, mock_db_connection):
+        """Test filtering tasks by status"""
+        client, user_id = authenticated_client
+        
+        # Mock tasks with different statuses
+        mock_joined_results = [
+            (
+                "123e4567-e89b-12d3-a456-426614174000",  # id
+                "Task 1",                                 # title
+                "Description 1",                          # description
+                date(2026, 3, 30),                        # due_date
+                "in_progress",                            # status
+                "high",                                   # priority
+                False,                                    # is_private
+                "team-1",                                 # team_id
+                datetime(2026, 3, 25, tzinfo=timezone.utc),  # created_at
+                datetime(2026, 3, 25, tzinfo=timezone.utc),  # updated_at
+                "owner"                                   # permission
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174001",  # id
+                "Task 2",                                 # title
+                "Description 2",                          # description
+                date(2026, 4, 1),                         # due_date
+                "not_started",                            # status
+                "medium",                                 # priority
+                False,                                    # is_private
+                "team-1",                                 # team_id
+                datetime(2026, 3, 26, tzinfo=timezone.utc),  # created_at
+                datetime(2026, 3, 26, tzinfo=timezone.utc),  # updated_at
+                "edit"                                    # permission
+            ),
+            (
+                "123e4567-e89b-12d3-a456-426614174002",  # id
+                "Task 3",                                 # title
+                "Description 3",                          # description
+                date(2026, 4, 15),                        # due_date
+                "completed",                              # status
+                "low",                                    # priority
+                True,                                     # is_private
+                "team-1",                                 # team_id
+                datetime(2026, 3, 27, tzinfo=timezone.utc),  # created_at
+                datetime(2026, 3, 27, tzinfo=timezone.utc),  # updated_at
+                "view"                                    # permission
+            )
+        ]
+        
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        
+        response = client.get("/todos?status=in_progress")
+        
+        # Verify the query includes status filter
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        
+        assert "AND t.task_status = %s" in query
+        assert "in_progress" in params
+        
+        # Set the mock return value after verifying the query
+        # Filter the mock results to only return tasks with the requested status
+        filtered_results = [task for task in mock_joined_results if task[4] == "in_progress"]
+        mock_cursor.fetchall.return_value = filtered_results
+        
+        # Make the actual request (or re-execute if needed)
+        response = client.get("/todos?status=in_progress")
+        data = response.get_json()
+        
+        assert response.status_code == 200
+        assert len(data["tasks"]) == 1
+        assert data["tasks"][0]["title"] == "Task 1"
+        assert data["tasks"][0]["status"] == "in_progress"
