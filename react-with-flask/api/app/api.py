@@ -275,7 +275,7 @@ def create_app():
         sort_by = request.args.get('sort_by', 'created_at') 
         sort_order = request.args.get('sort_order', 'desc')  # asc or desc
 
-        valid_sort_fields = ['created_at','title', 'task_status','priority']
+        valid_sort_fields = ['created_at','title', 'task_status','priority','due_date']
         if sort_by not in valid_sort_fields:
             sort_by = 'created_at'
 
@@ -328,6 +328,9 @@ def create_app():
                     END {direction},
                     t.created_at DESC
             """.format(direction=order_direction)
+        elif sort_by == 'due_date':
+            nulls_position = "NULLS LAST" if sort_order.lower() == 'asc' else "NULLS FIRST"
+            query += f" ORDER BY t.due_date {sort_direction} {nulls_position}"
         else:
             # Regular sorting for other fields
             query += f" ORDER BY t.{sort_by} {sort_direction}"
