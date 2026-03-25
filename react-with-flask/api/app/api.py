@@ -494,6 +494,105 @@ def create_app():
             return jsonify({"message": "Failed to create task"}), 500
         finally:
             db_connection.close()
+    
+    @app.route("/api/todos/<task_id>", methods=["PATCH"])
+    def update_task_api(task_id):
+        return update_task(task_id)
+    
+    @app.route("/todos/<task_id>", methods=["PATCH"])
+    @login_required
+    def update_task(task_id):
+        """Update a task - requires edit or owner permission in task_collaborators"""
+        user_id = get_current_user_id()
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"message": "No data provided"}), 400
+        
+        db_connection = get_db_connection()
+        if db_connection is None:
+            return jsonify({"message": "Database connection failed"}), 500
+        
+        try:
+            with db_connection.cursor() as cursor:
+                # Check user's permission for this task
+                cursor.execute(
+                    """
+                    SELECT permission FROM task_collaborators 
+                    WHERE task_id = %s AND user_id = %s
+                    """,
+                    (task_id, user_id)
+                )
+                permission = cursor.fetchone()
+                
+                if not permission:
+                    return jsonify({"message": "You don't have permission to update this task"}), 403
+                
+                # Only edit and owner permissions can update
+                if permission[0] not in ['edit', 'owner']:
+                    return jsonify({"message": "Insufficient permissions to update this task"}), 403
+                
+                # Build dynamic update query based on provided fields
+                update_fields = []
+                params = []
+                
+                # Valid fields that can be updated
+                valid_fields = ['title', 'task_description', 'due_date', 'task_status', 'task_priority', 'is_private']
+                
+                for field in valid_fields:
+                    if field in data:
+                        # Validate status if present
+                        if field == 'task_status' and data[field] not in ['not_started', 'in_progress', 'completed', 'archived']:
+                            return jsonify({"message": f"Invalid status: {data[field]}"}), 400
+                        
+                        # Validate priority if present
+                        if field == 'task_priority' and data[field] not in ['low', 'medium', 'high', 'urgent']:
+                            return jsonify({"message": f"Invalid priority: {data[field]}"}), 400
+                        
+                        update_fields.append(f"{field} = %s")
+                        params.append(data[field])
+                
+                if not update_fields:
+                    return jsonify({"message": "No valid fields to update"}), 400
+                
+                # Add updated_by_id and let the trigger handle updated_at
+                params.append(user_id)
+                update_fields.append("updated_by_id = %s")
+                
+                # Build and execute the update query
+                query = f"""
+                    UPDATE tasks 
+                    SET {', '.join(update_fields)}
+                    WHERE id = %s
+                    RETURNING id, title, task_status, task_priority, updated_at
+                """
+                params.append(task_id)
+                
+                cursor.execute(query, params)
+                db_connection.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({"message": "Task not found"}), 404
+                
+                updated_task = cursor.fetchone()
+                
+                return jsonify({
+                    "message": "Task updated successfully",
+                    "task": {
+                        "id": updated_task[0],
+                        "title": updated_task[1],
+                        "task_status": updated_task[2],
+                        "task_priority": updated_task[3],
+                        "updated_at": updated_task[4].isoformat() if updated_task[4] else None
+                    }
+                }), 200
+                
+        except Exception as e:
+            print(f"Error updating task: {e}")
+            db_connection.rollback()
+            return jsonify({"message": "Failed to update task"}), 500
+        finally:
+            db_connection.close()
 
     # API alias for GET /api/teams
     @app.route("/api/teams", methods=["GET"])
