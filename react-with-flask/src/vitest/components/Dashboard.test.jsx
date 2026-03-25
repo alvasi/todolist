@@ -83,14 +83,14 @@ describe('Dashboard Component', () => {
     localStorageMock.getItem.mockReturnValue(JSON.stringify(mockUser))
     
     // Setup fetch mocks
-    mockFetch.mockImplementation((url) => {
+    mockFetch.mockImplementation((url, options) => {
       if (url === '/api/teams') {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ teams: mockTeams })
         })
       }
-      if (url === '/api/todos' || url.startsWith('/api/todos?')) {
+      if ((url === '/api/todos' || url.startsWith('/api/todos?')) && (!options || options.method === 'GET')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ tasks: mockTasks })
@@ -110,6 +110,19 @@ describe('Dashboard Component', () => {
         <Dashboard />
       </BrowserRouter>
     )
+  }
+
+  // Helper to robustly click a task by its title; some DOM nodes wrap the text so
+  // clicking the text node may not trigger the task-card handler in tests.
+  const clickTaskByTitle = async (title) => {
+    const el = screen.getByText(title)
+    // Debugging: log the element we click if modal doesn't open
+    fireEvent.click(el)
+    // If modal didn't open, try clicking the nearest .task-card container
+    if (!screen.queryByText('Edit Task')) {
+      const card = el.closest ? el.closest('.task-card') : el.parentElement
+      if (card) fireEvent.click(card)
+    }
   }
 
   describe('Authentication', () => {
@@ -283,7 +296,6 @@ describe('Dashboard Component', () => {
     })
 
     it('should apply status filter', async () => {
-      const fetchTasksMock = vi.fn()
       renderDashboard()
       
       await waitFor(() => {
@@ -420,7 +432,7 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Task 2')).toBeInTheDocument() // Task with 'edit' permission
       })
       
-      fireEvent.click(screen.getByText('Task 2'))
+  await clickTaskByTitle('Task 2')
       
       expect(screen.getByText('Edit Task')).toBeInTheDocument()
       expect(screen.getByLabelText('Title *')).toHaveValue('Task 2')
@@ -470,7 +482,7 @@ describe('Dashboard Component', () => {
       // Mock alert
       const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {})
       
-      fireEvent.click(screen.getByText('Task 3'))
+  await clickTaskByTitle('Task 3')
       
       expect(alertMock).toHaveBeenCalledWith('You do not have permission to edit this task')
       expect(screen.queryByText('Edit Task')).not.toBeInTheDocument()
@@ -511,7 +523,7 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Task 2')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('Task 2'))
+  await clickTaskByTitle('Task 2')
       
       await waitFor(() => {
         expect(screen.getByText('Edit Task')).toBeInTheDocument()
@@ -564,7 +576,7 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Task 2')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('Task 2'))
+  await clickTaskByTitle('Task 2')
       
       await waitFor(() => {
         expect(screen.getByText('Edit Task')).toBeInTheDocument()
@@ -586,7 +598,7 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Task 2')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('Task 2'))
+  await clickTaskByTitle('Task 2')
       
       await waitFor(() => {
         expect(screen.getByText('Edit Task')).toBeInTheDocument()
@@ -597,6 +609,182 @@ describe('Dashboard Component', () => {
       await waitFor(() => {
         expect(screen.queryByText('Edit Task')).not.toBeInTheDocument()
       })
+    })
+  })
+  describe('Task Deletion', () => {
+    it('should show delete button only for tasks with owner permission', async () => {
+      renderDashboard()
+      
+      await waitFor(() => {
+        expect(screen.getByText('Task 1')).toBeInTheDocument() // owner permission
+        expect(screen.getByText('Task 2')).toBeInTheDocument() // edit permission
+      })
+      
+      // Find delete buttons - should only be one (for Task 1)
+      const deleteButtons = screen.queryAllByText('🗑️ Delete')
+      expect(deleteButtons.length).toBe(1)
+    })
+
+    it('should show confirmation dialog when clicking delete button', async () => {
+      const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true)
+      
+      renderDashboard()
+      
+      await waitFor(() => {
+        expect(screen.getByText('Task 1')).toBeInTheDocument()
+      })
+      
+      const deleteButton = screen.getByText('🗑️ Delete')
+      fireEvent.click(deleteButton)
+      
+      expect(confirmMock).toHaveBeenCalledWith('Are you sure you want to delete "Task 1"?')
+      
+      confirmMock.mockRestore()
+    })
+
+    it('should not delete task when confirmation is cancelled', async () => {
+      const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      const deleteTaskMock = vi.fn()
+      
+      mockFetch.mockImplementation((url, options) => {
+        if (url === '/api/teams') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ teams: mockTeams })
+          })
+        }
+        if (url === '/api/todos' || url.startsWith('/api/todos?')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ tasks: mockTasks })
+          })
+        }
+        if (url === '/api/todos/task-1' && options?.method === 'DELETE') {
+          deleteTaskMock()
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ message: 'Task deleted' })
+          })
+        }
+        return Promise.reject(new Error('Not found'))
+      })
+      
+      renderDashboard()
+      
+      await waitFor(() => {
+        expect(screen.getByText('Task 1')).toBeInTheDocument()
+      })
+      
+      const deleteButton = screen.getByText('🗑️ Delete')
+      fireEvent.click(deleteButton)
+      
+      expect(confirmMock).toHaveBeenCalled()
+      expect(deleteTaskMock).not.toHaveBeenCalled()
+      
+      confirmMock.mockRestore()
+    })
+
+    it('should delete task when confirmed and refresh tasks', async () => {
+      const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true)
+      const deleteTaskMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ message: 'Task deleted successfully' })
+      })
+      
+      mockFetch.mockImplementation((url, options) => {
+        if (url === '/api/teams') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ teams: mockTeams })
+          })
+        }
+        if ((url === '/api/todos' || url.startsWith('/api/todos?')) && (!options || options.method === 'GET')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ tasks: mockTasks })
+          })
+        }
+        if (url === '/api/todos/task-1' && options?.method === 'DELETE') {
+          return deleteTaskMock()
+        }
+        return Promise.reject(new Error('Not found'))
+      })
+      
+      renderDashboard()
+      
+      await waitFor(() => {
+        expect(screen.getByText('Task 1')).toBeInTheDocument()
+      })
+      
+      const deleteButton = screen.getByText('🗑️ Delete')
+      fireEvent.click(deleteButton)
+      
+      await waitFor(() => {
+        expect(deleteTaskMock).toHaveBeenCalled()
+      })
+      
+      confirmMock.mockRestore()
+    })
+
+    it('should show error when delete fails due to permission', async () => {
+      const confirmMock = vi.spyOn(window, 'confirm').mockReturnValue(true)
+      const deleteTaskMock = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: () => Promise.resolve({ message: 'Only task owners can delete tasks' })
+      })
+      const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {})
+      
+      mockFetch.mockImplementation((url, options) => {
+        if (url === '/api/teams') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ teams: mockTeams })
+          })
+        }
+        if ((url === '/api/todos' || url.startsWith('/api/todos?')) && (!options || options.method === 'GET')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ tasks: mockTasks })
+          })
+        }
+        if (url === '/api/todos/task-1' && options?.method === 'DELETE') {
+          return deleteTaskMock()
+        }
+        return Promise.reject(new Error('Not found'))
+      })
+      
+      renderDashboard()
+      
+      await waitFor(() => {
+        expect(screen.getByText('Task 1')).toBeInTheDocument()
+      })
+      
+      const deleteButton = screen.getByText('🗑️ Delete')
+      fireEvent.click(deleteButton)
+      
+      await waitFor(() => {
+        expect(deleteTaskMock).toHaveBeenCalled()
+        expect(alertMock).toHaveBeenCalledWith('Only task owners can delete tasks')
+      })
+      
+      confirmMock.mockRestore()
+      alertMock.mockRestore()
+    })
+
+    it('should prevent event propagation so delete button doesnt trigger edit modal', async () => {
+      
+      renderDashboard()
+      
+      await waitFor(() => {
+        expect(screen.getByText('Task 1')).toBeInTheDocument()
+      })
+      
+      const deleteButton = screen.getByText('🗑️ Delete')
+      fireEvent.click(deleteButton)
+      
+      // Edit modal should not open
+      expect(screen.queryByText('Edit Task')).not.toBeInTheDocument()
     })
   })
 })
