@@ -1,4 +1,4 @@
-# 📝 Todo List Application
+# 📝 To Do List Application
 
 A full-stack todo list application built with React, Flask, and PostgreSQL. The application allows users to create and manage tasks.
 
@@ -6,7 +6,7 @@ A full-stack todo list application built with React, Flask, and PostgreSQL. The 
 
 - 🔐 **User Authentication** - Login and registration with session management
 - 📋 **Task Management** - Create, read, update, and delete tasks
-- 🏷️ **Filtering & Sorting** - Filter tasks by status, priority, team (team management under development), and due date; sort by various fields
+- 🏷️ **Filtering & Sorting** - Filter tasks by status, priority, team (under development), and range of due date. Sort tasks by created date, due date, task title, status and priority
 - 🎨 **Modern UI** - Clean, responsive design with gradient themes
 - 🐳 **Docker Support** - Easy setup with Docker Compose
 
@@ -23,7 +23,9 @@ A full-stack todo list application built with React, Flask, and PostgreSQL. The 
     cd todolist
     docker compose up -d
     ```
-3. **Access the application**
+3. **Access the application**  
     http://localhost:5173
+
+### Application Architecture (Simplified)
 
 
