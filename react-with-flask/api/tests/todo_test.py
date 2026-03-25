@@ -496,3 +496,52 @@ class TestTodoTask:
 
     def test_get_teams(self, authenticated_client, mock_db_connection):
         pass
+
+    def test_update_task_given_permission(self, authenticated_client, mock_db_connection):
+        """Test that tasks can be updated with given edit or owner permission in task collaborator field"""
+        client, user_id = authenticated_client
+        task_id = "123e4567-e89b-12d3-a456-426614174000"
+        
+        # Test data for update
+        update_data = {
+            "title": "Updated Task Title",
+            "task_description": "Updated description with new details",
+            "due_date": "2026-12-31",
+            "task_status": "in_progress",
+            "task_priority": "high",
+            "is_private": True
+        }
+        
+        # Setup mock cursor
+        mock_cursor = self._setup_mock_cursor(mock_db_connection)
+        
+        # Mock the SELECT to check permission (user has edit permission)
+        mock_cursor.fetchone.return_value = ('edit',)  # Permission: edit
+        
+        response = client.patch(f"/api/todos/{task_id}", json=update_data)
+        data = response.get_json()
+        
+        assert response.status_code == 200
+        assert data["message"] == "Task updated successfully"
+        
+        # Verify the UPDATE query was executed with correct fields
+        mock_cursor.execute.assert_called_once()
+        query = mock_cursor.execute.call_args[0][0]
+        params = mock_cursor.execute.call_args[0][1]
+        
+        assert "UPDATE tasks" in query
+        assert "title = %s" in query
+        assert "task_description = %s" in query
+        assert "due_date = %s" in query
+        assert "task_status = %s" in query
+        assert "task_priority = %s" in query
+        assert "is_private = %s" in query
+        assert "updated_by_id = %s" in query
+        assert "updated_at = CURRENT_TIMESTAMP" in query
+        assert params[0] == update_data["title"]
+        assert params[1] == update_data["task_description"]
+        assert params[2] == update_data["due_date"]
+        assert params[3] == update_data["task_status"]
+        assert params[4] == update_data["task_priority"]
+        assert params[5] == update_data["is_private"]
+        assert params[6] == user_id  # updated_by_id
