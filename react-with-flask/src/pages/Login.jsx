@@ -24,6 +24,7 @@ function Login() {
 
             const response = await fetch('/api/login', {
                 method: 'POST',
+                credentials: 'include', // ensure session cookie from server is stored
                 headers: {
                     'Content-Type': 'application/json',
                 },
