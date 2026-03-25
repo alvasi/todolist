@@ -47,6 +47,14 @@ def create_app():
     def create_personal_team(user_id):
         """Create a personal team for the user and add them as an owner"""
         db_connection = get_db_connection()
+
+        if db_connection is None:
+            print("Database connection failed when fetching tasks")
+            return jsonify({"message": "Database connection failed"}), 500
+
+        if not user_id:
+            # Require authentication for tasks - explicit 401 is clearer than proceeding with None
+            return jsonify({"message": "Authentication required"}), 401
         if db_connection is None:
             print("Database connection failed in create_personal_team")
             return None
@@ -322,7 +330,14 @@ def create_app():
         query = """
             SELECT DISTINCT t.id, t.title, t.task_description, t.due_date, 
                 t.task_status, t.task_priority, t.is_private, t.created_by_id,
-                t.updated_by_id, t.team_id, tm.team_name,t.created_at, t.updated_at, tc.permission
+                t.updated_by_id, t.team_id, tm.team_name,t.created_at, t.updated_at, tc.permission,
+                CASE t.task_priority
+                    WHEN 'low' THEN 1
+                    WHEN 'medium' THEN 2
+                    WHEN 'high' THEN 3
+                    WHEN 'urgent' THEN 4
+                    ELSE 5
+                END AS priority_order
             FROM tasks t
             INNER JOIN task_collaborators tc ON t.id = tc.task_id
             LEFT JOIN teams tm ON t.team_id = tm.id
@@ -354,17 +369,10 @@ def create_app():
         if sort_by == 'priority':
             # Custom order for priority with specified direction
             order_direction = 'ASC' if sort_order.lower() == 'asc' else 'DESC'
-            query += """
-                ORDER BY 
-                    CASE t.task_priority
-                        WHEN 'low' THEN 1
-                        WHEN 'medium' THEN 2
-                        WHEN 'high' THEN 3
-                        WHEN 'urgent' THEN 4
-                        ELSE 5
-                    END {direction},
-                    t.created_at DESC
-            """.format(direction=order_direction)
+            # Order by the computed priority_order (must appear in SELECT when using DISTINCT)
+            query += f"""
+                ORDER BY priority_order {order_direction}, t.created_at {sort_direction}
+            """
         elif sort_by == 'due_date':
             nulls_position = "NULLS LAST" if sort_order.lower() == 'asc' else "NULLS FIRST"
             query += f" ORDER BY t.due_date {sort_direction} {nulls_position}"
@@ -373,6 +381,12 @@ def create_app():
             query += f" ORDER BY t.{sort_by} {sort_direction}"
         try:
             with db_connection.cursor() as cursor:
+                # Debug: log the query and params when troubleshooting sort issues
+                try:
+                    print('Executing tasks query:', query)
+                    print('With params:', params)
+                except Exception:
+                    pass
                 cursor.execute(query, params)
                 tasks = cursor.fetchall()
                 
@@ -399,6 +413,13 @@ def create_app():
                 }), 200
 
         except Exception as e:
+            # Log full exception and traceback for diagnostics
+            try:
+                import traceback
+                print('Error fetching tasks:', e)
+                traceback.print_exc()
+            except Exception:
+                print('Error fetching tasks (failed to print traceback):', e)
             return jsonify({"message": "Failed to fetch tasks"}), 500
         finally:
             db_connection.close()
@@ -464,7 +485,7 @@ def create_app():
                 )
                 db_connection.commit()
                 print(f"✅ Added collaborator for task {task_id}, user {user_id}")  # Debug
-                
+
                 return jsonify({
                     "message": "Task created successfully",
                     "task_id": task_id
@@ -474,7 +495,12 @@ def create_app():
         finally:
             db_connection.close()
 
+    # API alias for GET /api/teams
     @app.route("/api/teams", methods=["GET"])
+    def get_teams_api():
+        return get_teams()
+
+    @app.route("/teams", methods=["GET"])
     @login_required
     def get_teams():
         """Get all teams the user is a member of"""

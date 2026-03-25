@@ -199,6 +199,7 @@ class TestTodoTask:
 
     def test_filter_by_task_status(self, authenticated_client, mock_db_connection):
         """Test that status filter is correctly added to SQL query"""
+        """ status (asc): archived > completed > in progress > not started """
         client, user_id = authenticated_client
         
         mock_cursor = self._setup_mock_cursor(mock_db_connection)
