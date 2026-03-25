@@ -647,6 +647,64 @@ def create_app():
             return jsonify({"message": "Failed to fetch teams"}), 500
         finally:
             db_connection.close()
+    
+    @app.route("/api/todos/<task_id>", methods=["DELETE"])
+    def delete_task_api(task_id):
+        return delete_task(task_id)
+
+    @app.route("/todos/<task_id>", methods=["DELETE"])
+    @login_required
+    def delete_task(task_id):
+        """Delete a task - requires owner permission in task_collaborators"""
+        user_id = get_current_user_id()
+        
+        db_connection = get_db_connection()
+        if db_connection is None:
+            return jsonify({"message": "Database connection failed"}), 500
+        
+        try:
+            with db_connection.cursor() as cursor:
+                # Check user's permission for this task
+                cursor.execute(
+                    """
+                    SELECT permission FROM task_collaborators 
+                    WHERE task_id = %s AND user_id = %s
+                    """,
+                    (task_id, user_id)
+                )
+                permission_row = cursor.fetchone()
+                
+                if not permission_row:
+                    return jsonify({"message": "You don't have permission to delete this task"}), 403
+                
+                permission = permission_row[0]
+                
+                # Only owner permission can delete
+                if permission != 'owner':
+                    return jsonify({"message": "Only task owners can delete tasks"}), 403
+                
+                # Delete the task (cascade will handle task_collaborators)
+                cursor.execute(
+                    "DELETE FROM tasks WHERE id = %s",
+                    (task_id,)
+                )
+                db_connection.commit()
+                
+                if cursor.rowcount == 0:
+                    return jsonify({"message": "Task not found"}), 404
+                
+                return jsonify({
+                    "message": "Task deleted successfully",
+                    "task_id": task_id
+                }), 200
+                
+        except Exception as e:
+            print(f"Error deleting task: {e}")
+            db_connection.rollback()
+            return jsonify({"message": "Failed to delete task"}), 500
+        finally:
+            db_connection.close()
+
 
     @app.route("/static/<path:filename>")
     def serve_static(filename):
