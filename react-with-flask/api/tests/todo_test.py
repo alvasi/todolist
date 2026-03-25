@@ -492,3 +492,6 @@ class TestTodoTask:
         # You might want to add NULLS FIRST or NULLS LAST
         assert "ORDER BY t.due_date ASC" in query
         assert response.status_code == 200
+
+    def test_get_teams(self, authenticated_client, mock_db_connection):
+        pass

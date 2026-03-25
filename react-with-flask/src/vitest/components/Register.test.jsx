@@ -148,6 +148,7 @@ describe('Register Component', () => {
             await waitFor(() => {
                 expect(mockFetch).toHaveBeenCalledWith('/api/register', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -334,6 +335,7 @@ describe('Register Component', () => {
             await waitFor(() => {
                 expect(mockFetch).toHaveBeenCalledWith('/api/register', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         username: 'testuser',

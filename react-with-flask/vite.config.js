@@ -15,7 +15,8 @@ export default defineConfig({
                 target: process.env.VITE_API_URL || 'http://127.0.0.1:5001',
                 changeOrigin: true,
                 secure: false,
-                rewrite: (path) => path.replace(/^\/api/, ''),
+                // Forward /api/* to the backend preserving the /api prefix so routes like /api/teams match
+                // (Previously the rewrite removed /api which caused backend 404s for /api routes.)
             },
         },
     },

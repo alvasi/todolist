@@ -45,9 +45,12 @@ def create_app():
         return session.get('user_id')
     
     def create_personal_team(user_id):
+        """Create a personal team for the user and add them as an owner"""
         db_connection = get_db_connection()
         if db_connection is None:
-            return jsonify({"message": "Database connection failed"}), 500
+            print("Database connection failed in create_personal_team")
+            return None
+        
         new_team = {
             "team_name": "Personal",
             "team_description": "For your eyes only",
@@ -55,14 +58,16 @@ def create_app():
             "created_by_id": user_id,
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         }
+        
         try:
             with db_connection.cursor() as cursor:
+                # Insert the team
                 cursor.execute(
                     """
                     INSERT INTO teams (team_name, team_description, is_personal, created_by_id, created_at)
-                    VALUES(%s,%s,%s,%s,%s)
+                    VALUES (%s, %s, %s, %s, %s)
                     RETURNING id
-                    """
+                    """,
                     (
                         new_team["team_name"],
                         new_team["team_description"],
@@ -73,13 +78,32 @@ def create_app():
                 )
                 db_connection.commit()
                 team_id = cursor.fetchone()[0]
+                print(f"Created personal team with ID: {team_id} for user: {user_id}")
+                
+                # Add the user as an owner member of the team
+                # Let joined_at use its DEFAULT value (CURRENT_TIMESTAMP)
+                cursor.execute(
+                    """
+                    INSERT INTO team_members (team_id, user_id, team_role)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (team_id, user_id, 'owner')
+                )
+                db_connection.commit()
+                print(f"Added user {user_id} as owner of team {team_id}")
+                
                 return team_id
-
         except Exception as e:
-            print(f"Error in register: {e}")
-            return jsonify({"message": "Failed to register user"}), 500
+            print(f"Error creating personal team: {e}")
+            db_connection.rollback()
+            return None
         finally:
             db_connection.close()
+
+    # Backwards-compatible API alias (allow frontend to call /api/register)
+    @app.route("/api/register", methods=["POST"])
+    def register_api():
+        return register()
 
     def set_current_user(user_id, username, alias, user_colour):
         """Set current user in session"""
@@ -176,10 +200,12 @@ def create_app():
                 db_connection.commit()
                 user_id = cursor.fetchone()[0]
                 team_id = create_personal_team(user_id)
+                if not team_id:
+                    print("Warning: Failed to create personal team for user")
 
                 return (
                     jsonify(
-                        {"message": "User registered successfully", "user_id": user_id}
+                        {"message": "User registered successfully", "user_id": user_id, "team_id":team_id}
                     ),
                     201,
                 )
@@ -189,6 +215,11 @@ def create_app():
             return jsonify({"message": "Failed to register user"}), 500
         finally:
             db_connection.close()
+
+    # API alias for /api/login
+    @app.route("/api/login", methods=["POST"])
+    def login_api():
+        return login()
 
     @app.route("/login", methods=["POST"])
     def login():
@@ -257,6 +288,11 @@ def create_app():
             return jsonify({"message": "Login failed"}), 500
         finally:
             db_connection.close()
+
+    # API alias for GET /api/todos
+    @app.route("/api/todos", methods=["GET"])
+    def get_tasks_api():
+        return get_tasks()
     
     @app.route("/todos", methods=["GET"])
     def get_tasks():
@@ -286,9 +322,10 @@ def create_app():
         query = """
             SELECT DISTINCT t.id, t.title, t.task_description, t.due_date, 
                 t.task_status, t.task_priority, t.is_private, t.created_by_id,
-                t.updated_by_id, t.team_id, t.created_at, t.updated_at, tc.permission
+                t.updated_by_id, t.team_id, tm.team_name,t.created_at, t.updated_at, tc.permission
             FROM tasks t
             INNER JOIN task_collaborators tc ON t.id = tc.task_id
+            LEFT JOIN teams tm ON t.team_id = tm.id
             WHERE tc.user_id = %s
         """
         params = [user_id]
@@ -352,17 +389,24 @@ def create_app():
                             "created_by_id": task[7],
                             "updated_by_id": task[8],
                             "team_id": task[9],
-                            "created_at": task[10].isoformat() if task[10] else None,
-                            "updated_at": task[11].isoformat() if task[8] else None,
-                            "permission": task[12]  # Add permission from collaborator table
+                            "team_name": task[10],
+                            "created_at": task[11].isoformat() if task[10] else None,
+                            "updated_at": task[12].isoformat() if task[8] else None,
+                            "permission": task[13]  # Add permission from collaborator table
                         }
                         for task in tasks
                     ]
                 }), 200
+
         except Exception as e:
             return jsonify({"message": "Failed to fetch tasks"}), 500
         finally:
             db_connection.close()
+
+    # API alias for POST /api/todos
+    @app.route("/api/todos", methods=["POST"])
+    def create_task_api():
+        return create_task()
 
     @app.route("/todos", methods=["POST"])
     @login_required
@@ -418,6 +462,8 @@ def create_app():
                     """,
                     (task_id, user_id, 'owner', user_id)
                 )
+                db_connection.commit()
+                print(f"✅ Added collaborator for task {task_id}, user {user_id}")  # Debug
                 
                 return jsonify({
                     "message": "Task created successfully",
@@ -425,6 +471,55 @@ def create_app():
                 }), 201
         except Exception as e:
             return jsonify({"message": "Failed to create task"}), 500
+        finally:
+            db_connection.close()
+
+    @app.route("/api/teams", methods=["GET"])
+    @login_required
+    def get_teams():
+        """Get all teams the user is a member of"""
+        user_id = get_current_user_id()
+        db_connection = get_db_connection()
+        
+        if db_connection is None:
+            return jsonify({"message": "Database connection failed"}), 500
+        
+        try:
+            with db_connection.cursor() as cursor:
+                # First, check if user exists in team_members
+                cursor.execute("""
+                    SELECT COUNT(*) FROM team_members WHERE user_id = %s
+                """, (user_id,))
+                count = cursor.fetchone()[0]
+                print(f"User {user_id} is a member of {count} teams")
+                
+                # Get all teams where user is a member (through team_members)
+                cursor.execute("""
+                    SELECT t.id, t.team_name, t.team_description, t.is_personal, t.created_at,
+                        tm.team_role
+                    FROM teams t
+                    INNER JOIN team_members tm ON t.id = tm.team_id
+                    WHERE tm.user_id = %s
+                    ORDER BY t.is_personal DESC, t.team_name
+                """, (user_id,))
+                teams = cursor.fetchall()
+                
+                return jsonify({
+                    "teams": [
+                        {
+                            "id": team[0],
+                            "name": team[1],
+                            "description": team[2],
+                            "is_personal": team[3],
+                            "created_at": team[4].isoformat() if team[4] else None,
+                            "role": team[5]  # Include the user's role in the team
+                        }
+                        for team in teams
+                    ]
+                }), 200
+        except Exception as e:
+            print(f"Error fetching teams: {e}")
+            return jsonify({"message": "Failed to fetch teams"}), 500
         finally:
             db_connection.close()
 

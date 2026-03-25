@@ -123,23 +123,61 @@ class TestUserRegistration:
             "alias": "Alva",
         }
 
-        # Setup mock: First request - SELECT None, INSERT (1,); Second request - SELECT (1,)
-        mock_cursor = setup_mock_db(
-            mock_db_connection, fetchone_side_effect=[None, (1,), (1,)]
-        )
+        # Create mock connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
 
+        # Set up the mock connection
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+
+        # Track fetchone calls for the entire test
+        # Order of calls:
+        # First request:
+        #   1. SELECT user (returns None)
+        #   2. INSERT user (returns user_id)
+        #   3. INSERT team (returns team_id) 
+        #   4. INSERT team_member (no return)
+        # Second request:
+        #   5. SELECT user (returns user_id - already exists)
+        #   Should stop here and return 409
+        
+        fetchone_calls = []
+        
+        def fetchone_side_effect():
+            call_num = len(fetchone_calls) + 1
+            fetchone_calls.append(call_num)
+            
+            if call_num == 1:
+                # First SELECT - no existing user
+                return None
+            elif call_num == 2:
+                # INSERT user RETURNING id
+                return (1,)
+            elif call_num == 3:
+                # INSERT team RETURNING id
+                return (1,)
+            elif call_num == 4:
+                # Second SELECT (duplicate username) - user exists
+                return (1,)
+            else:
+                return None
+        
+        mock_cursor.fetchone.side_effect = fetchone_side_effect
+        
         # First request - should succeed
         response1 = client.post("/register", json=user_data)
         data1 = response1.get_json()
-
+        
         assert response1.status_code == 201
         assert data1["message"] == "User registered successfully"
         assert data1["user_id"] == 1
-
-        # Second request - should fail with 409
+        
+        # Second request - should fail with 409 (duplicate username)
         response2 = client.post("/register", json=user_data)
         data2 = response2.get_json()
-
+        
         assert response2.status_code == 409
         assert data2["message"] == "Username already taken"
 

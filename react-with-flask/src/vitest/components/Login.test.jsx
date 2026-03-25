@@ -137,6 +137,7 @@ describe('Login Component', () => {
             await waitFor(() => {
                 expect(mockFetch).toHaveBeenCalledWith('/api/login', {
                     method: 'POST',
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json',
                     },
