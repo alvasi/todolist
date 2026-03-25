@@ -5,7 +5,6 @@ function DashboardHeader({ user, onAddTask, onFilter, onSort, onLogout }) {
     <header className="dashboard-header">
       <div className="header-left">
         <h1>Welcome, {user.alias || user.username}!</h1>
-        <div className="user-colour" style={{ backgroundColor: user.colour }}></div>
       </div>
       <div className="header-right">
         <button onClick={onAddTask} className="btn-add">

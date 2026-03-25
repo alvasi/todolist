@@ -7,6 +7,7 @@ function SortModal({ show, onClose, sort, setSort }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <h2>Sort Tasks</h2>
+        
         <div className="form-group">
           <label htmlFor="sort-by-select">Sort By</label>
           <select
@@ -29,12 +30,15 @@ function SortModal({ show, onClose, sort, setSort }) {
             value={sort.sort_order}
             onChange={(e) => setSort({...sort, sort_order: e.target.value})}
           >
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
+            <option value="asc">Ascending (A to Z, oldest first)</option>
+            <option value="desc">Descending (Z to A, newest first)</option>
           </select>
         </div>
         
         <div className="modal-buttons">
+          <button onClick={() => setSort({ sort_by: 'created_at', sort_order: 'desc' })}>
+            Reset to Default
+          </button>
           <button onClick={onClose}>Apply</button>
         </div>
       </div>

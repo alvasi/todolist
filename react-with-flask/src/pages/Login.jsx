@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import '../assets/Auth.css'
 
 function Login() {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [message, setMessage] = useState('')
+    const [messageType, setMessageType] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const navigate = useNavigate()
 
@@ -14,7 +16,6 @@ function Login() {
         setMessage('')
 
         try {
-            // Trim inputs and avoid submitting empty/whitespace-only values
             const trimmedUsername = username.trim()
             const trimmedPassword = password.trim()
             if (!trimmedUsername || !trimmedPassword) {
@@ -22,9 +23,11 @@ function Login() {
                 return
             }
 
+            setMessageType('')
+
             const response = await fetch('/api/login', {
                 method: 'POST',
-                credentials: 'include', // ensure session cookie from server is stored
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -37,16 +40,16 @@ function Login() {
             const data = await response.json()
 
             if (response.ok) {
-                // Store user data in localStorage or context
                 localStorage.setItem('user', JSON.stringify(data.user))
-                // Redirect to dashboard
                 navigate('/dashboard')
             } else {
                 setMessage(data.message || 'Login failed')
+                setMessageType('error')
             }
         } catch (error) {
             console.error('Error:', error)
             setMessage('Network error. Please try again.')
+            setMessageType('error')
         } finally {
             setIsLoading(false)
         }
@@ -56,7 +59,7 @@ function Login() {
         <div className="login-container">
             <h2>Login</h2>
             <form onSubmit={handleSubmit}>
-                <div>
+                <div className="form-group">
                     <label htmlFor="username">Username:</label>
                     <input
                         id="username"
@@ -65,9 +68,10 @@ function Login() {
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         required
+                        placeholder="Enter your username"
                     />
                 </div>
-                <div>
+                <div className="form-group">
                     <label htmlFor="password">Password:</label>
                     <input
                         id="password"
@@ -76,12 +80,13 @@ function Login() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
+                        placeholder="Enter your password"
                     />
                 </div>
                 <button type="submit" disabled={isLoading}>
                     {isLoading ? 'Logging in...' : 'Login'}
                 </button>
-                {message && <div className="message">{message}</div>}
+                {message && <div className={`message ${messageType === 'success' ? 'success' : 'error'}`}>{message}</div>}
             </form>
             <p>
                 Don't have an account?{' '}

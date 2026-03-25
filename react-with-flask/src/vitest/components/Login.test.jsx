@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import Login from '../../pages/Login'
@@ -26,6 +26,9 @@ describe('Login Component', () => {
         mockNavigate.mockClear()
         // Clear localStorage
         localStorage.clear()
+        // Suppress noisy console output from simulated network errors
+        vi.spyOn(console, 'error').mockImplementation(() => {})
+        vi.spyOn(console, 'warn').mockImplementation(() => {})
     })
 
     afterEach(() => {
@@ -82,7 +85,7 @@ describe('Login Component', () => {
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             expect(screen.getByText('Logging in...')).toBeInTheDocument()
             expect(submitButton).toBeDisabled()
@@ -132,7 +135,7 @@ describe('Login Component', () => {
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(mockFetch).toHaveBeenCalledWith('/api/login', {
@@ -176,7 +179,7 @@ describe('Login Component', () => {
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 // Check localStorage
@@ -205,7 +208,7 @@ describe('Login Component', () => {
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'wrongpassword')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(
@@ -233,7 +236,7 @@ describe('Login Component', () => {
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(screen.getByText('Login failed')).toBeInTheDocument()
@@ -251,7 +254,7 @@ describe('Login Component', () => {
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(
@@ -269,7 +272,7 @@ describe('Login Component', () => {
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             // Form should not submit due to HTML5 validation
             expect(mockFetch).not.toHaveBeenCalled()
@@ -282,7 +285,7 @@ describe('Login Component', () => {
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, 'testuser')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             expect(mockFetch).not.toHaveBeenCalled()
         })
@@ -291,7 +294,7 @@ describe('Login Component', () => {
             renderLogin()
 
             const submitButton = screen.getByRole('button', { name: 'Login' })
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             expect(mockFetch).not.toHaveBeenCalled()
         })
@@ -302,7 +305,7 @@ describe('Login Component', () => {
             renderLogin()
 
             const registerLink = screen.getByText('Register here')
-            fireEvent.click(registerLink)
+            await userEvent.click(registerLink)
 
             expect(mockNavigate).toHaveBeenCalledWith('/register')
         })
@@ -324,7 +327,7 @@ describe('Login Component', () => {
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(screen.getByText('First error')).toBeInTheDocument()
@@ -345,7 +348,7 @@ describe('Login Component', () => {
                 }),
             })
 
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(
@@ -363,7 +366,7 @@ describe('Login Component', () => {
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             expect(mockFetch).not.toHaveBeenCalled()
         })
@@ -375,7 +378,7 @@ describe('Login Component', () => {
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, 'testuser')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             expect(mockFetch).not.toHaveBeenCalled()
         })
@@ -389,7 +392,7 @@ describe('Login Component', () => {
 
             await userEvent.type(usernameInput, '   ')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             // HTML5 validation will catch this since input is required
             expect(mockFetch).not.toHaveBeenCalled()
@@ -404,7 +407,7 @@ describe('Login Component', () => {
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, '   ')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             // HTML5 validation will catch this since input is required
             expect(mockFetch).not.toHaveBeenCalled()

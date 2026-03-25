@@ -57,6 +57,13 @@ function Dashboard() {
     sort_by: 'created_at',
     sort_order: 'desc'
   })
+
+  const clearSort = () => {
+    setSort({
+      sort_by: 'created_at',
+      sort_order: 'desc'
+    })
+  }
   
   const navigate = useNavigate()
 
@@ -305,7 +312,7 @@ function Dashboard() {
         onClearFilters={clearFilters}
       />
 
-      <ActiveSort sort={sort} />
+      <ActiveSort sort={sort} onClearSort={clearSort} />
 
       <div className="tasks-container">
         {loading ? (

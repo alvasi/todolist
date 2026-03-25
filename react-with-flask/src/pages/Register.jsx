@@ -1,15 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import '../assets/Auth.css'  // Import the shared auth styles
 
 function Register() {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [alias, setAlias] = useState('')
     const [message, setMessage] = useState('')
+    const [messageType, setMessageType] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const navigate = useNavigate()
 
-    // Keep a ref to the timeout so tests or unmounting components don't leak timers
     const timerRef = useRef(null)
 
     useEffect(() => {
@@ -24,6 +25,7 @@ function Register() {
         e.preventDefault()
         setIsLoading(true)
         setMessage('')
+        setMessageType('')
 
         try {
             const response = await fetch('/api/register', {
@@ -43,28 +45,29 @@ function Register() {
 
             if (response.ok) {
                 setMessage('Registration successful! Redirecting to login...')
-                // Redirect to login page after 2 seconds
-                // store timer so it can be cleared if the component unmounts (avoids test leakage)
+                setMessageType('success')
                 timerRef.current = setTimeout(() => {
                     navigate('/login')
                 }, 2000)
             } else {
                 setMessage(data.message || 'Registration failed')
+                setMessageType('error')
             }
         } catch (error) {
             console.error('Error:', error)
             setMessage('Network error. Please try again.')
+            setMessageType('error')
         } finally {
             setIsLoading(false)
         }
     }
 
     return (
-        <section id="center">
+        <div className="register-container">
             <h2>Register</h2>
-            <div className="register">
-                <form onSubmit={handleSubmit}>
-                    <label htmlFor="username">username:</label>
+            <form onSubmit={handleSubmit}>
+                <div className="form-group">
+                    <label htmlFor="username">Username:</label>
                     <input
                         type="text"
                         id="username"
@@ -72,10 +75,12 @@ function Register() {
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         required
+                        placeholder="Choose a username"
                     />
-                    <br></br>
+                </div>
 
-                    <label htmlFor="password">password:</label>
+                <div className="form-group">
+                    <label htmlFor="password">Password:</label>
                     <input
                         type="password"
                         id="password"
@@ -83,39 +88,41 @@ function Register() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
+                        placeholder="Create a password"
                     />
-                    <br></br>
+                </div>
 
-                    <label htmlFor="alias">alias:</label>
+                <div className="form-group">
+                    <label htmlFor="alias">Alias:</label>
                     <input
                         type="text"
                         id="alias"
                         name="alias"
                         value={alias}
                         onChange={(e) => setAlias(e.target.value)}
+                        placeholder="Display name (optional)"
                     />
-                    <br></br>
+                </div>
 
-                    <button type="submit" disabled={isLoading}>
-                        {isLoading ? 'Registering...' : 'Register'}
-                    </button>
+                <button type="submit" disabled={isLoading}>
+                    {isLoading ? 'Registering...' : 'Register'}
+                </button>
 
-                    {message && <div className="message">{message}</div>}
-                </form>
-                <p>
-                    Already have an account?{' '}
-                    <a
-                        href="/login"
-                        onClick={(e) => {
-                            e.preventDefault()
-                            navigate('/login')
-                        }}
-                    >
-                        Login here
-                    </a>
-                </p>
-            </div>
-        </section>
+                {message && <div className={`message ${messageType === 'success' ? 'success' : 'error'}`}>{message}</div>}
+            </form>
+            <p>
+                Already have an account?{' '}
+                <a
+                    href="/login"
+                    onClick={(e) => {
+                        e.preventDefault()
+                        navigate('/login')
+                    }}
+                >
+                    Login here
+                </a>
+            </p>
+        </div>
     )
 }
 

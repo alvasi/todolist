@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import Register from '../../pages/Register'
@@ -25,6 +25,9 @@ describe('Register Component', () => {
         vi.clearAllMocks()
         mockFetch.mockClear()
         mockNavigate.mockClear()
+        // Suppress noisy console output from simulated network errors
+        vi.spyOn(console, 'error').mockImplementation(() => {})
+        vi.spyOn(console, 'warn').mockImplementation(() => {})
     })
 
     afterEach(() => {
@@ -49,9 +52,9 @@ describe('Register Component', () => {
             expect(
                 screen.getByRole('heading', { name: 'Register' })
             ).toBeInTheDocument()
-            expect(screen.getByLabelText('username:')).toBeInTheDocument()
-            expect(screen.getByLabelText('password:')).toBeInTheDocument()
-            expect(screen.getByLabelText('alias:')).toBeInTheDocument()
+            expect(screen.getByLabelText(/username:/i)).toBeInTheDocument()
+            expect(screen.getByLabelText(/password:/i)).toBeInTheDocument()
+            expect(screen.getByLabelText(/alias:/i)).toBeInTheDocument()
             expect(
                 screen.getByRole('button', { name: 'Register' })
             ).toBeInTheDocument()
@@ -78,15 +81,15 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText('username:')
-            const passwordInput = screen.getByLabelText('password:')
+            const usernameInput = screen.getByLabelText(/username:/i)
+            const passwordInput = screen.getByLabelText(/password:/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             // Button should show loading text
             expect(screen.getByText('Registering...')).toBeInTheDocument()
@@ -98,7 +101,7 @@ describe('Register Component', () => {
         it('should update username input value', async () => {
             renderRegister()
 
-            const usernameInput = screen.getByLabelText('username:')
+            const usernameInput = screen.getByLabelText(/username:/i)
             await userEvent.type(usernameInput, 'testuser')
 
             expect(usernameInput).toHaveValue('testuser')
@@ -107,7 +110,7 @@ describe('Register Component', () => {
         it('should update password input value', async () => {
             renderRegister()
 
-            const passwordInput = screen.getByLabelText('password:')
+            const passwordInput = screen.getByLabelText(/password:/i)
             await userEvent.type(passwordInput, 'password123')
 
             expect(passwordInput).toHaveValue('password123')
@@ -116,7 +119,7 @@ describe('Register Component', () => {
         it('should update alias input value', async () => {
             renderRegister()
 
-            const aliasInput = screen.getByLabelText('alias:')
+            const aliasInput = screen.getByLabelText(/alias:/i)
             await userEvent.type(aliasInput, 'Test Alias')
 
             expect(aliasInput).toHaveValue('Test Alias')
@@ -133,9 +136,9 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText('username:')
-            const passwordInput = screen.getByLabelText('password:')
-            const aliasInput = screen.getByLabelText('alias:')
+            const usernameInput = screen.getByLabelText(/username:/i)
+            const passwordInput = screen.getByLabelText(/password:/i)
+            const aliasInput = screen.getByLabelText(/alias:/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
@@ -143,7 +146,7 @@ describe('Register Component', () => {
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
             await userEvent.type(aliasInput, 'Test Alias')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(mockFetch).toHaveBeenCalledWith('/api/register', {
@@ -175,15 +178,15 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText('username:')
-            const passwordInput = screen.getByLabelText('password:')
+            const usernameInput = screen.getByLabelText(/username:/i)
+            const passwordInput = screen.getByLabelText(/password:/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             // Check success message
             await waitFor(() => {
@@ -213,15 +216,15 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText('username:')
-            const passwordInput = screen.getByLabelText('password:')
+            const usernameInput = screen.getByLabelText(/username:/i)
+            const passwordInput = screen.getByLabelText(/password:/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
 
             await userEvent.type(usernameInput, 'existinguser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(
@@ -242,15 +245,15 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText('username:')
-            const passwordInput = screen.getByLabelText('password:')
+            const usernameInput = screen.getByLabelText(/username:/i)
+            const passwordInput = screen.getByLabelText(/password:/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(
@@ -265,15 +268,15 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText('username:')
-            const passwordInput = screen.getByLabelText('password:')
+            const usernameInput = screen.getByLabelText(/username:/i)
+            const passwordInput = screen.getByLabelText(/password:/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(
@@ -287,13 +290,13 @@ describe('Register Component', () => {
         it('should not submit if username is empty', async () => {
             renderRegister()
 
-            const passwordInput = screen.getByLabelText('password:')
+            const passwordInput = screen.getByLabelText(/password:/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
 
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             // Form should not submit due to HTML5 validation
             expect(mockFetch).not.toHaveBeenCalled()
@@ -302,13 +305,13 @@ describe('Register Component', () => {
         it('should not submit if password is empty', async () => {
             renderRegister()
 
-            const usernameInput = screen.getByLabelText('username:')
+            const usernameInput = screen.getByLabelText(/username:/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
 
             await userEvent.type(usernameInput, 'testuser')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             // Form should not submit due to HTML5 validation
             expect(mockFetch).not.toHaveBeenCalled()
@@ -322,15 +325,15 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText('username:')
-            const passwordInput = screen.getByLabelText('password:')
+            const usernameInput = screen.getByLabelText(/username:/i)
+            const passwordInput = screen.getByLabelText(/password:/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(mockFetch).toHaveBeenCalledWith('/api/register', {
@@ -352,7 +355,7 @@ describe('Register Component', () => {
             renderRegister()
 
             const loginLink = screen.getByText('Login here')
-            fireEvent.click(loginLink)
+            await userEvent.click(loginLink)
 
             expect(mockNavigate).toHaveBeenCalledWith('/login')
         })
@@ -368,15 +371,15 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText('username:')
-            const passwordInput = screen.getByLabelText('password:')
+            const usernameInput = screen.getByLabelText(/username:/i)
+            const passwordInput = screen.getByLabelText(/password:/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
 
             await userEvent.type(usernameInput, 'testuser')
             await userEvent.type(passwordInput, 'password123')
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(screen.getByText('First error')).toBeInTheDocument()
@@ -388,7 +391,7 @@ describe('Register Component', () => {
                 json: async () => ({ message: 'Success' }),
             })
 
-            fireEvent.click(submitButton)
+            await userEvent.click(submitButton)
 
             await waitFor(() => {
                 expect(

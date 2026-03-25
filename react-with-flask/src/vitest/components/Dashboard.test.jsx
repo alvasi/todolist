@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import Dashboard from '../../pages/Dashboard'
@@ -91,6 +91,10 @@ describe('Dashboard Component', () => {
     // Setup default window spies for alert/confirm so tests don't error
     alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {})
     confirmMock = vi.spyOn(window, 'confirm').mockImplementation(() => true)
+    
+    // Suppress expected console noise (network errors logged by components)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
 
     // Setup fetch mocks
     mockFetch.mockImplementation((url, options) => {
@@ -178,10 +182,12 @@ describe('Dashboard Component', () => {
       })
     })
 
-    it('should show loading state while fetching tasks', () => {
+    it('should show loading state while fetching tasks', async () => {
       renderDashboard()
       
-      expect(screen.getByText('Loading tasks...')).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText('Loading tasks...')).toBeInTheDocument()
+      })
     })
 
     it('should show "No tasks" message when tasks array is empty', async () => {
@@ -226,7 +232,7 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('+ Add Task')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('+ Add Task'))
+  await userEvent.click(screen.getByText('+ Add Task'))
       
       expect(screen.getByText('Create New Task')).toBeInTheDocument()
       expect(screen.getByLabelText('Title *')).toBeInTheDocument()
@@ -241,10 +247,10 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('+ Add Task')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('+ Add Task'))
+  await userEvent.click(screen.getByText('+ Add Task'))
       expect(screen.getByText('Create New Task')).toBeInTheDocument()
       
-      fireEvent.click(screen.getByText('Cancel'))
+  await userEvent.click(screen.getByText('Cancel'))
       
       await waitFor(() => {
         expect(screen.queryByText('Create New Task')).not.toBeInTheDocument()
@@ -278,14 +284,14 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('+ Add Task')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('+ Add Task'))
+  await userEvent.click(screen.getByText('+ Add Task'))
       
       // Fill form
       await userEvent.type(screen.getByLabelText('Title *'), 'New Test Task')
       await userEvent.type(screen.getByLabelText('Description'), 'Test description')
       await userEvent.selectOptions(screen.getByLabelText('Team *'), 'team-1')
       
-      fireEvent.click(screen.getByText('Create Task'))
+  await userEvent.click(screen.getByText('Create Task'))
       
       await waitFor(() => {
         expect(createTaskMock).toHaveBeenCalled()
@@ -301,7 +307,7 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Filter')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('Filter'))
+  await userEvent.click(screen.getByText('Filter'))
       
       expect(screen.getByText('Filter Tasks')).toBeInTheDocument()
       expect(screen.getByLabelText('Status')).toBeInTheDocument()
@@ -316,10 +322,10 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Filter')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('Filter'))
+  await userEvent.click(screen.getByText('Filter'))
       
       await userEvent.selectOptions(screen.getByLabelText('Status'), 'in_progress')
-      fireEvent.click(screen.getByText('Apply'))
+  await userEvent.click(screen.getByText('Apply'))
       
       await waitFor(() => {
         expect(screen.getByText('Active Filters:')).toBeInTheDocument()
@@ -334,15 +340,15 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Filter')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('Filter'))
+  await userEvent.click(screen.getByText('Filter'))
       await userEvent.selectOptions(screen.getByLabelText('Status'), 'in_progress')
-      fireEvent.click(screen.getByText('Apply'))
+  await userEvent.click(screen.getByText('Apply'))
       
       await waitFor(() => {
         expect(screen.getByText('Clear All')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('Clear All'))
+  await userEvent.click(screen.getByText('Clear All'))
       
       await waitFor(() => {
         expect(screen.queryByText('Status: in progress')).not.toBeInTheDocument()
@@ -358,7 +364,7 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Sort')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('Sort'))
+  await userEvent.click(screen.getByText('Sort'))
       
       expect(screen.getByText('Sort Tasks')).toBeInTheDocument()
       expect(screen.getByLabelText('Sort By')).toBeInTheDocument()
@@ -372,13 +378,14 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Sort')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('Sort'))
+      await userEvent.click(screen.getByText('Sort'))
       await userEvent.selectOptions(screen.getByLabelText('Sort By'), 'title')
       await userEvent.selectOptions(screen.getByLabelText('Order'), 'asc')
-      fireEvent.click(screen.getByText('Apply'))
-      
+      await userEvent.click(screen.getByText('Apply'))
+
       await waitFor(() => {
-        expect(screen.getByText('Sorting: By title (asc)')).toBeInTheDocument()
+        // The UI renders the active sort as a short tag
+        expect(screen.getByText('Title (Ascending)')).toBeInTheDocument()
       })
     })
   })
@@ -391,7 +398,7 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Logout')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('Logout'))
+  await userEvent.click(screen.getByText('Logout'))
       
       expect(localStorageMock.removeItem).toHaveBeenCalledWith('user')
       expect(mockNavigate).toHaveBeenCalledWith('/login')
@@ -547,7 +554,7 @@ describe('Dashboard Component', () => {
       await userEvent.clear(titleInput)
       await userEvent.type(titleInput, 'Updated Task Title')
       
-      fireEvent.click(screen.getByText('Update Task'))
+  await userEvent.click(screen.getByText('Update Task'))
       
       await waitFor(() => {
         expect(updateTaskMock).toHaveBeenCalled()
@@ -596,7 +603,7 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Edit Task')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('Update Task'))
+  await userEvent.click(screen.getByText('Update Task'))
       
       await waitFor(() => {
         expect(alertMock).toHaveBeenCalledWith('You do not have permission to edit this task')
@@ -618,7 +625,7 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Edit Task')).toBeInTheDocument()
       })
       
-      fireEvent.click(screen.getByText('Cancel'))
+  await userEvent.click(screen.getByText('Cancel'))
       
       await waitFor(() => {
         expect(screen.queryByText('Edit Task')).not.toBeInTheDocument()
@@ -634,8 +641,8 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Task 2')).toBeInTheDocument() // edit permission
       })
       
-      // Find delete buttons - should only be one (for Task 1)
-      const deleteButtons = screen.queryAllByText('🗑️ Delete')
+  // Find delete buttons - should only be one (for Task 1)
+  const deleteButtons = screen.queryAllByTitle('Delete task')
       expect(deleteButtons.length).toBe(1)
     })
 
@@ -648,8 +655,8 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Task 1')).toBeInTheDocument()
       })
       
-      const deleteButton = screen.getByText('🗑️ Delete')
-      fireEvent.click(deleteButton)
+  const deleteButton = screen.getByTitle('Delete task')
+  await userEvent.click(deleteButton)
       
       expect(confirmMock).toHaveBeenCalledWith('Are you sure you want to delete "Task 1"?')
       
@@ -689,8 +696,8 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Task 1')).toBeInTheDocument()
       })
       
-      const deleteButton = screen.getByText('🗑️ Delete')
-      fireEvent.click(deleteButton)
+  const deleteButton = screen.getByTitle('Delete task')
+  await userEvent.click(deleteButton)
       
       expect(confirmMock).toHaveBeenCalled()
       expect(deleteTaskMock).not.toHaveBeenCalled()
@@ -730,8 +737,8 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Task 1')).toBeInTheDocument()
       })
       
-      const deleteButton = screen.getByText('🗑️ Delete')
-      fireEvent.click(deleteButton)
+  const deleteButton = screen.getByTitle('Delete task')
+  await userEvent.click(deleteButton)
       
       await waitFor(() => {
         expect(deleteTaskMock).toHaveBeenCalled()
@@ -774,8 +781,8 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Task 1')).toBeInTheDocument()
       })
       
-      const deleteButton = screen.getByText('🗑️ Delete')
-      fireEvent.click(deleteButton)
+  const deleteButton = screen.getByTitle('Delete task')
+  await userEvent.click(deleteButton)
       
       await waitFor(() => {
         expect(deleteTaskMock).toHaveBeenCalled()
@@ -794,8 +801,8 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Task 1')).toBeInTheDocument()
       })
       
-      const deleteButton = screen.getByText('🗑️ Delete')
-      fireEvent.click(deleteButton)
+  const deleteButton = screen.getByTitle('Delete task')
+  await userEvent.click(deleteButton)
       
       // Edit modal should not open
       expect(screen.queryByText('Edit Task')).not.toBeInTheDocument()
