@@ -26,14 +26,33 @@ A full-stack todo list application built with React, Flask, and PostgreSQL. The 
 3. **Access the application**  
     http://localhost:5173
 
+4. **Use the application**
+- Register as a user, provide a username, password, and what you would like to be called. It will let you know if the username has already been taken.
+![Registration Page](react-with-flask/src/assets/register.png)
+- Wait for page to redirect to login page
+![Login Page](react-with-flask/src/assets/login.png)
+- Login with the credentials you provided on the registration page it will take you to a dashboard
+![Dashboard](react-with-flask/src/assets/dashboard.png)
+- Click on + Add Task to create new task (for due date there is a calendar widget if you click on the right end side of the input area)
+![Create Task](react-with-flask/src/assets/create_task.png)
+- Click on the task card to edit that task
+![Edit Task](react-with-flask/src/assets/edit_task.png)
+- Filter and sort the tasks on your dashboard
+![Filter Tasks](react-with-flask/src/assets/filter.png)
+![Sort Tasks](react-with-flask/src/assets/sort.png)
+- Delete the task if you wish to
+![Delete Tasks](react-with-flask/src/assets/delete.png)
+
 
 ## Application Architecture
 
-![Architecture Diagram](react-with-flask/src/assets/todolist_architecture_diagram.drawio.svg)
+![Architecture Diagram](react-with-flask/src/assets/architecture.png)
 
 ## Database Design
 
 ![ERD](react-with-flask/src/assets/erd.png)
+
+Database is designed to include team features, very extensible.
 
 
 ## API Endpoints and Functionality
@@ -51,12 +70,14 @@ Most endpoints require authentication via session cookies. After successful logi
 ### POST /api/register
 Register a new user account.
 
+```json
 Request Body:
 {
   "username": "john_doe",
   "password": "secure_password",
   "alias": "John"
 }
+```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -64,12 +85,14 @@ Request Body:
 | password | string | Yes | User password |
 | alias | string | No | Display name (defaults to username) |
 
+```json
 Response (201 Created):
 {
   "message": "User registered successfully",
   "user_id": "123e4567-e89b-12d3-a456-426614174000",
   "team_id": "123e4567-e89b-12d3-a456-426614174001"
 }
+```
 
 Error Responses:
 | Status | Message |
@@ -83,17 +106,20 @@ Error Responses:
 ### POST /api/login
 Authenticate a user and create a session.
 
+```json
 Request Body:
 {
   "username": "john_doe",
   "password": "secure_password"
 }
+```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | username | string | Yes | User's username |
 | password | string | Yes | User's password |
 
+```json
 Response (200 OK):
 {
   "message": "Login successful",
@@ -104,6 +130,7 @@ Response (200 OK):
     "colour": "#000000"
   }
 }
+```
 
 Error Responses:
 | Status | Message |
@@ -123,7 +150,7 @@ Headers:
 - Cookie: Session cookie (automatically sent)
 
 Query Parameters: None
-
+```json
 Response (200 OK):
 {
   "teams": [
@@ -145,6 +172,7 @@ Response (200 OK):
     }
   ]
 }
+```
 
 Error Responses:
 | Status | Message |
@@ -181,6 +209,7 @@ Valid sort_by values:
 - task_status - Status
 - priority - Priority
 
+```json
 Response (200 OK):
 {
   "tasks": [
@@ -200,6 +229,7 @@ Response (200 OK):
     }
   ]
 }
+```
 
 Error Responses:
 | Status | Message |
@@ -216,6 +246,7 @@ Headers:
 - Cookie: Session cookie (automatically sent)
 - Content-Type: application/json
 
+```json
 Request Body:
 {
   "title": "Complete project",
@@ -226,6 +257,7 @@ Request Body:
   "is_private": false,
   "team_id": "123e4567-e89b-12d3-a456-426614174002"
 }
+```
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
@@ -237,11 +269,13 @@ Request Body:
 | is_private | boolean | No | false | Whether task is private |
 | team_id | string | Yes | - | Team ID (must be a team the user belongs to) |
 
+```json
 Response (201 Created):
 {
   "message": "Task created successfully",
   "task_id": "123e4567-e89b-12d3-a456-426614174000"
 }
+```
 
 Error Responses:
 | Status | Message |
@@ -266,6 +300,7 @@ URL Parameters:
 |-----------|------|-------------|
 | task_id | string | UUID of the task to update |
 
+```json
 Request Body: (any combination of fields)
 {
   "title": "Updated project title",
@@ -275,6 +310,7 @@ Request Body: (any combination of fields)
   "task_priority": "urgent",
   "is_private": true
 }
+```
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -285,6 +321,7 @@ Request Body: (any combination of fields)
 | task_priority | string | New priority |
 | is_private | boolean | New privacy setting |
 
+```json
 Response (200 OK):
 {
   "message": "Task updated successfully",
@@ -296,6 +333,7 @@ Response (200 OK):
     "updated_at": "2024-01-03T00:00:00Z"
   }
 }
+```
 
 Error Responses:
 | Status | Message |
@@ -319,11 +357,13 @@ URL Parameters:
 |-----------|------|-------------|
 | task_id | string | UUID of the task to delete |
 
+```json
 Response (200 OK):
 {
   "message": "Task deleted successfully",
   "task_id": "123e4567-e89b-12d3-a456-426614174000"
 }
+```
 
 Error Responses:
 | Status | Message |
@@ -391,3 +431,13 @@ Error Responses:
 3. Date Format: All dates should be in ISO format (YYYY-MM-DD) for requests. Responses return dates in ISO 8601 format.
 
 4. UUID Format: All IDs are UUID v4 strings.
+
+
+## Immediate Next Steps
+
+1. Fix the sort task options (clearer asc and desc descriptions)
+2. Hide archived tasks or add a current filter (with overdue tasks)
+3. Allow user to create teams and add other users
+4. Hash the password
+5. Add stricter type checks for API endpoint inputs (enum)
+6. Refactor test suite
