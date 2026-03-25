@@ -412,4 +412,191 @@ describe('Dashboard Component', () => {
       })
     })
   })
+  describe('Task Editing', () => {
+    it('should open edit modal when clicking on a task with edit permission', async () => {
+      renderDashboard()
+      
+      await waitFor(() => {
+        expect(screen.getByText('Task 2')).toBeInTheDocument() // Task with 'edit' permission
+      })
+      
+      fireEvent.click(screen.getByText('Task 2'))
+      
+      expect(screen.getByText('Edit Task')).toBeInTheDocument()
+      expect(screen.getByLabelText('Title *')).toHaveValue('Task 2')
+    })
+
+    it('should not open edit modal when clicking on a task with view permission', async () => {
+      // Modify mockTasks to include a task with 'view' permission
+      const mockTasksWithView = [
+        {
+          id: 'task-3',
+          title: 'Task 3',
+          description: 'Description 3',
+          due_date: '2026-12-31',
+          task_status: 'in_progress',
+          task_priority: 'high',
+          is_private: false,
+          team_id: 'team-1',
+          team_name: 'Personal',
+          permission: 'view',
+          created_at: '2026-03-25T00:00:00Z',
+          updated_at: '2026-03-25T00:00:00Z'
+        }
+      ]
+      
+      mockFetch.mockImplementation((url) => {
+        if (url === '/api/teams') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ teams: mockTeams })
+          })
+        }
+        if (url === '/api/todos' || url.startsWith('/api/todos?')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ tasks: mockTasksWithView })
+          })
+        }
+        return Promise.reject(new Error('Not found'))
+      })
+      
+      renderDashboard()
+      
+      await waitFor(() => {
+        expect(screen.getByText('Task 3')).toBeInTheDocument()
+      })
+      
+      // Mock alert
+      const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {})
+      
+      fireEvent.click(screen.getByText('Task 3'))
+      
+      expect(alertMock).toHaveBeenCalledWith('You do not have permission to edit this task')
+      expect(screen.queryByText('Edit Task')).not.toBeInTheDocument()
+      
+      alertMock.mockRestore()
+    })
+
+    it('should update task when submitting edit form', async () => {
+      const updateTaskMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ message: 'Task updated successfully' })
+      })
+      
+      mockFetch.mockImplementation((url, options) => {
+        if (url === '/api/teams') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ teams: mockTeams })
+          })
+        }
+        // Accept GET requests both with and without an explicit options object,
+        // and accept query-string variants like '/api/todos?...'
+        if ((url === '/api/todos' || url.startsWith('/api/todos?')) && (!options || options.method === 'GET')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ tasks: mockTasks })
+          })
+        }
+        if (url === '/api/todos/task-2' && options?.method === 'PATCH') {
+          return updateTaskMock()
+        }
+        return Promise.reject(new Error('Not found'))
+      })
+      
+      renderDashboard()
+      
+      await waitFor(() => {
+        expect(screen.getByText('Task 2')).toBeInTheDocument()
+      })
+      
+      fireEvent.click(screen.getByText('Task 2'))
+      
+      await waitFor(() => {
+        expect(screen.getByText('Edit Task')).toBeInTheDocument()
+      })
+      
+      const titleInput = screen.getByLabelText('Title *')
+      await userEvent.clear(titleInput)
+      await userEvent.type(titleInput, 'Updated Task Title')
+      
+      fireEvent.click(screen.getByText('Update Task'))
+      
+      await waitFor(() => {
+        expect(updateTaskMock).toHaveBeenCalled()
+      })
+    })
+
+    it('should show error when update fails due to permission', async () => {
+      const updateTaskMock = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: () => Promise.resolve({ message: 'You do not have permission to edit this task' })
+      })
+      
+      mockFetch.mockImplementation((url, options) => {
+        if (url === '/api/teams') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ teams: mockTeams })
+          })
+        }
+        // Accept GET requests both with and without an explicit options object,
+        // and accept query-string variants like '/api/todos?...'
+        if ((url === '/api/todos' || url.startsWith('/api/todos?')) && (!options || options.method === 'GET')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ tasks: mockTasks })
+          })
+        }
+        if (url === '/api/todos/task-2' && options?.method === 'PATCH') {
+          return updateTaskMock()
+        }
+        return Promise.reject(new Error('Not found'))
+      })
+      
+      const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {})
+      
+      renderDashboard()
+      
+      await waitFor(() => {
+        expect(screen.getByText('Task 2')).toBeInTheDocument()
+      })
+      
+      fireEvent.click(screen.getByText('Task 2'))
+      
+      await waitFor(() => {
+        expect(screen.getByText('Edit Task')).toBeInTheDocument()
+      })
+      
+      fireEvent.click(screen.getByText('Update Task'))
+      
+      await waitFor(() => {
+        expect(alertMock).toHaveBeenCalledWith('You do not have permission to edit this task')
+      })
+      
+      alertMock.mockRestore()
+    })
+
+    it('should close edit modal when clicking cancel', async () => {
+      renderDashboard()
+      
+      await waitFor(() => {
+        expect(screen.getByText('Task 2')).toBeInTheDocument()
+      })
+      
+      fireEvent.click(screen.getByText('Task 2'))
+      
+      await waitFor(() => {
+        expect(screen.getByText('Edit Task')).toBeInTheDocument()
+      })
+      
+      fireEvent.click(screen.getByText('Cancel'))
+      
+      await waitFor(() => {
+        expect(screen.queryByText('Edit Task')).not.toBeInTheDocument()
+      })
+    })
+  })
 })
