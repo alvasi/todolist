@@ -211,6 +211,39 @@ function Dashboard() {
     }
   }
 
+  const handleDeleteTask = async (taskId, taskTitle) => {
+    if (!window.confirm(`Are you sure you want to delete "${taskTitle}"?`)) {
+      return
+    }
+    
+    try {
+      const response = await fetch(`/api/todos/${taskId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          alert('Only task owners can delete tasks')
+        } else {
+          alert(data.message || 'Failed to delete task')
+        }
+        return
+      }
+      
+      // Refresh tasks after deletion
+      fetchTasks()
+    } catch (err) {
+      console.error('Error deleting task:', err)
+      alert('Failed to delete task. Please try again.')
+    }
+  }
+
   const openEditModal = (task) => {
     // Only allow editing if user has edit or owner permission
     if (task.permission !== 'edit' && task.permission !== 'owner') {
@@ -338,13 +371,25 @@ function Dashboard() {
                   <small>Created: {new Date(task.created_at).toLocaleDateString()}</small>
                   <small>Updated: {new Date(task.updated_at).toLocaleDateString()}</small>
                 </div>
+                {/* Delete Button - Only for owners */}
+                {task.permission === 'owner' && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteTask(task.id, task.title)
+                    }}
+                    className="btn-delete"
+                  >
+                    🗑️ Delete
+                  </button>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Add Task Modal - same as before */}
+      {/* Add Task Modal */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
