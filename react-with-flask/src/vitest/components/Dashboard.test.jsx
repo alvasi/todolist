@@ -72,6 +72,12 @@ describe('Dashboard Component', () => {
     }
   ]
 
+  // Shared spies so tests don't hit the real window.confirm/alert (JSDOM
+  // doesn't implement these well and they cause noisy warnings). Individual
+  // tests may override return values when needed.
+  let alertMock
+  let confirmMock
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockFetch.mockClear()
@@ -82,6 +88,10 @@ describe('Dashboard Component', () => {
     // Setup localStorage mock
     localStorageMock.getItem.mockReturnValue(JSON.stringify(mockUser))
     
+    // Setup default window spies for alert/confirm so tests don't error
+    alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {})
+    confirmMock = vi.spyOn(window, 'confirm').mockImplementation(() => true)
+
     // Setup fetch mocks
     mockFetch.mockImplementation((url, options) => {
       if (url === '/api/teams') {
@@ -101,6 +111,9 @@ describe('Dashboard Component', () => {
   })
 
   afterEach(() => {
+    // restore spies created in beforeEach
+  if (alertMock && typeof alertMock.mockRestore === 'function') alertMock.mockRestore()
+  if (confirmMock && typeof confirmMock.mockRestore === 'function') confirmMock.mockRestore()
     vi.restoreAllMocks()
   })
 
@@ -116,12 +129,13 @@ describe('Dashboard Component', () => {
   // clicking the text node may not trigger the task-card handler in tests.
   const clickTaskByTitle = async (title) => {
     const el = screen.getByText(title)
-    // Debugging: log the element we click if modal doesn't open
-    fireEvent.click(el)
-    // If modal didn't open, try clicking the nearest .task-card container
+    // Prefer userEvent (it triggers events more like a real user and
+    // reduces act(...) warnings). If clicking the text node doesn't open
+    // the modal, click the nearest .task-card container.
+    await userEvent.click(el)
     if (!screen.queryByText('Edit Task')) {
       const card = el.closest ? el.closest('.task-card') : el.parentElement
-      if (card) fireEvent.click(card)
+      if (card) await userEvent.click(card)
     }
   }
 
