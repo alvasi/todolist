@@ -349,6 +349,7 @@ body {
   margin: 0;
   line-height: 1.4;
   word-break: break-word;
+  text-transform: capitalize;
 }
 
 .task-description {
@@ -569,6 +570,7 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   width: fit-content;
+  text-transform: uppercase;
 }
 
 .priority-low {
