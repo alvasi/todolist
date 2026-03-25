@@ -536,3 +536,112 @@ class TestTodoTask:
         assert data["task"]["title"] == update_data["title"]
         assert data["task"]["task_status"] == update_data["task_status"]
         assert data["task"]["task_priority"] == update_data["task_priority"]
+
+    def test_delete_task_given_permission(self, authenticated_client, mock_db_connection):
+        """Test only owners of the task can delete them"""
+        client, user_id = authenticated_client
+        task_id = "123e4567-e89b-12d3-a456-426614174000"
+        
+        # Setup mock connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        
+        # Mock permission check (user has owner permission)
+        mock_cursor.fetchone.return_value = ('owner',)
+        mock_cursor.rowcount = 1
+        
+        response = client.delete(f"/api/todos/{task_id}")
+        data = response.get_json()
+        
+        assert response.status_code == 200
+        assert data["message"] == "Task deleted successfully"
+        assert data["task_id"] == task_id
+        
+        # Verify the SELECT AND DELETE query was executed
+        assert mock_cursor.execute.call_count == 2
+
+        # Get the calls
+        calls = mock_cursor.execute.call_args_list
+
+        # First call should be SELECT for permission check
+        select_call = calls[0]
+        assert "SELECT permission FROM task_collaborators" in select_call[0][0]
+        assert select_call[0][1] == (task_id, user_id)
+        
+        # Second call should be DELETE
+        delete_call = calls[1]
+        assert "DELETE FROM tasks" in delete_call[0][0]
+        assert delete_call[0][1] == (task_id,)
+
+
+    def test_delete_task_fails_with_edit_permission(self, authenticated_client, mock_db_connection):
+        """Test users with edit permission cannot delete tasks"""
+        client, user_id = authenticated_client
+        task_id = "123e4567-e89b-12d3-a456-426614174000"
+        
+        # Setup mock connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        
+        # Mock permission check (user has edit permission)
+        mock_cursor.fetchone.return_value = ('edit',)
+        
+        response = client.delete(f"/api/todos/{task_id}")
+        data = response.get_json()
+        
+        assert response.status_code == 403
+        assert data["message"] == "Only task owners can delete tasks"
+        
+        # Verify SELECT and not DELETE was executed
+        assert mock_cursor.execute.call_count == 1
+        
+        # Verify the call was the permission check
+        call = mock_cursor.execute.call_args[0][0]
+        assert "SELECT permission FROM task_collaborators" in call
+        
+        # Verify DELETE was not called
+        delete_calls = [c for c in mock_cursor.execute.call_args_list 
+                        if "DELETE FROM tasks" in c[0][0]]
+        assert len(delete_calls) == 0
+
+    def test_delete_task_fails_with_view_permission(self, authenticated_client, mock_db_connection):
+        """Test users with view permission cannot delete tasks"""
+        client, user_id = authenticated_client
+        task_id = "123e4567-e89b-12d3-a456-426614174000"
+        
+        # Setup mock connection and cursor
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        
+        mock_db_connection.return_value = mock_conn
+        mock_conn.__enter__.return_value = mock_conn
+        mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+        
+        # Mock permission check (user has view permission)
+        mock_cursor.fetchone.return_value = ('view',)
+        
+        response = client.delete(f"/api/todos/{task_id}")
+        data = response.get_json()
+        
+        assert response.status_code == 403
+        assert data["message"] == "Only task owners can delete tasks"
+        
+        # Verify SELECT and not DELETE was executed
+        assert mock_cursor.execute.call_count == 1
+        
+        # Verify the call was the permission check
+        call = mock_cursor.execute.call_args[0][0]
+        assert "SELECT permission FROM task_collaborators" in call
+        
+        # Verify DELETE was not called
+        delete_calls = [c for c in mock_cursor.execute.call_args_list 
+                        if "DELETE FROM tasks" in c[0][0]]
+        assert len(delete_calls) == 0
