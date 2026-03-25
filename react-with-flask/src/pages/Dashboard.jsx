@@ -5,7 +5,7 @@ import '../assets/Dashboard.css'
 function Dashboard() {
   const [user, setUser] = useState(null)
   const [tasks, setTasks] = useState([])
-  const [teams, setTeams] = useState([]) // Add teams state
+  const [teams, setTeams] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   
@@ -13,6 +13,16 @@ function Dashboard() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showFilterModal, setShowFilterModal] = useState(false)
   const [showSortModal, setShowSortModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    task_description: '',
+    due_date: '',
+    task_status: '',
+    task_priority: '',
+    is_private: false
+  })
   
   // Form states
   const [newTask, setNewTask] = useState({
@@ -43,21 +53,18 @@ function Dashboard() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Check if user is logged in
     const userData = localStorage.getItem('user')
     if (!userData) {
       navigate('/login')
       return
     }
     setUser(JSON.parse(userData))
-    fetchTeams() // Fetch teams first
+    fetchTeams()
     fetchTasks()
   }, [filters, sort])
 
-  // Fetch all teams for the current user
   const fetchTeams = async () => {
     try {
-      // Include token from localStorage if present (helps when API expects Bearer tokens)
       const userData = JSON.parse(localStorage.getItem('user') || 'null')
       const headers = { 'Content-Type': 'application/json' }
       if (userData?.token) headers.Authorization = `Bearer ${userData.token}`
@@ -68,13 +75,9 @@ function Dashboard() {
         headers,
       })
 
-      // Debug logging to help identify whether personal team is returned
-      console.log('/api/teams status', response.status)
       const data = await response.json().catch(() => null)
-      console.log('/api/teams response', data)
 
       if (response.ok && data) {
-        // Normalize to an array and set teams
         const teamsArr = Array.isArray(data.teams) ? data.teams : data.teams ? [data.teams] : []
         setTeams(teamsArr)
       } else {
@@ -85,7 +88,6 @@ function Dashboard() {
     }
   }
 
-  // Get team name by ID
   const getTeamName = (teamId) => {
     if (teamId === undefined || teamId === null) return null
     const idStr = String(teamId)
@@ -98,7 +100,6 @@ function Dashboard() {
     setError(null)
     
     try {
-      // Build query string from filters and sort
       const params = new URLSearchParams()
       
       if (filters.status) params.append('status', filters.status)
@@ -113,8 +114,6 @@ function Dashboard() {
       const queryString = params.toString()
       const url = queryString ? `/api/todos?${queryString}` : '/api/todos'
       
-      console.log('Fetching tasks from URL:', url)  // Debug
-      
       const response = await fetch(url, {
         method: 'GET',
         credentials: 'include',
@@ -123,17 +122,11 @@ function Dashboard() {
         }
       })
       
-      console.log('Tasks response status:', response.status)  // Debug
-      
       if (!response.ok) {
         throw new Error('Failed to fetch tasks')
       }
       
       const data = await response.json()
-      console.log('Raw tasks data:', data)  // Debug
-      console.log('Tasks array:', data.tasks)  // Debug
-      console.log('Number of tasks:', data.tasks?.length || 0)  // Debug
-      
       setTasks(data.tasks || [])
     } catch (err) {
       console.error('Error fetching tasks:', err)
@@ -160,7 +153,6 @@ function Dashboard() {
         throw new Error('Failed to create task')
       }
       
-      // Reset form and close modal
       setNewTask({
         title: '',
         task_description: '',
@@ -171,13 +163,71 @@ function Dashboard() {
         team_id: ''
       })
       setShowAddModal(false)
-      
-      // Refresh tasks
       fetchTasks()
     } catch (err) {
       console.error('Error creating task:', err)
       alert('Failed to create task. Please try again.')
     }
+  }
+
+  const handleEditTask = async (e) => {
+    e.preventDefault()
+    
+    try {
+      const response = await fetch(`/api/todos/${editingTask.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editFormData)
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          alert('You do not have permission to edit this task')
+        } else {
+          alert(data.message || 'Failed to update task')
+        }
+        return
+      }
+      
+      setShowEditModal(false)
+      setEditingTask(null)
+      setEditFormData({
+        title: '',
+        task_description: '',
+        due_date: '',
+        task_status: '',
+        task_priority: '',
+        is_private: false
+      })
+      fetchTasks()
+    } catch (err) {
+      console.error('Error updating task:', err)
+      alert('Failed to update task. Please try again.')
+    }
+  }
+
+  const openEditModal = (task) => {
+    // Only allow editing if user has edit or owner permission
+    if (task.permission !== 'edit' && task.permission !== 'owner') {
+      alert('You do not have permission to edit this task')
+      return
+    }
+    
+    setEditingTask(task)
+    setEditFormData({
+      title: task.title,
+      task_description: task.description || '',
+      due_date: task.due_date || '',
+      task_status: task.task_status,
+      task_priority: task.task_priority,
+      is_private: task.is_private
+    })
+    setShowEditModal(true)
   }
 
   const handleLogout = () => {
@@ -251,7 +301,12 @@ function Dashboard() {
         ) : (
           <div className="tasks-grid">
             {tasks.map(task => (
-              <div key={task.id} className="task-card">
+              <div 
+                key={task.id} 
+                className="task-card"
+                onClick={() => openEditModal(task)}
+                style={{ cursor: task.permission === 'edit' || task.permission === 'owner' ? 'pointer' : 'default' }}
+              >
                 <div className="task-header">
                   <h3>{task.title}</h3>
                   <span className={`status-badge status-${task.task_status}`}>
@@ -289,7 +344,7 @@ function Dashboard() {
         )}
       </div>
 
-      {/* Add Task Modal */}
+      {/* Add Task Modal - same as before */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -392,7 +447,93 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Filter Modal */}
+      {/* Edit Task Modal */}
+      {showEditModal && editingTask && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>Edit Task</h2>
+            <form onSubmit={handleEditTask}>
+              <div className="form-group">
+                <label htmlFor="edit-title">Title *</label>
+                <input
+                  id="edit-title"
+                  type="text"
+                  value={editFormData.title}
+                  onChange={(e) => setEditFormData({...editFormData, title: e.target.value})}
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="edit-description">Description</label>
+                <textarea
+                  id="edit-description"
+                  value={editFormData.task_description}
+                  onChange={(e) => setEditFormData({...editFormData, task_description: e.target.value})}
+                  rows="3"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="edit-due-date">Due Date</label>
+                <input
+                  id="edit-due-date"
+                  type="date"
+                  value={editFormData.due_date}
+                  onChange={(e) => setEditFormData({...editFormData, due_date: e.target.value})}
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="edit-status">Status</label>
+                <select
+                  id="edit-status"
+                  value={editFormData.task_status}
+                  onChange={(e) => setEditFormData({...editFormData, task_status: e.target.value})}
+                >
+                  <option value="not_started">Not Started</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="edit-priority">Priority</label>
+                <select
+                  id="edit-priority"
+                  value={editFormData.task_priority}
+                  onChange={(e) => setEditFormData({...editFormData, task_priority: e.target.value})}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="edit-private">
+                  <input
+                    id="edit-private"
+                    type="checkbox"
+                    checked={editFormData.is_private}
+                    onChange={(e) => setEditFormData({...editFormData, is_private: e.target.checked})}
+                  />
+                  Private Task
+                </label>
+              </div>
+              
+              <div className="modal-buttons">
+                <button type="button" onClick={() => setShowEditModal(false)}>Cancel</button>
+                <button type="submit">Update Task</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Modal - same as before */}
       {showFilterModal && (
         <div className="modal-overlay" onClick={() => setShowFilterModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -473,7 +614,7 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Sort Modal */}
+      {/* Sort Modal - same as before */}
       {showSortModal && (
         <div className="modal-overlay" onClick={() => setShowSortModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
