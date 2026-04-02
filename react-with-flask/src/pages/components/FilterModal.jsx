@@ -1,4 +1,5 @@
 import React from 'react'
+import calendarIcon from "../../assets/calendar.svg"
 
 function FilterModal({ show, onClose, filters, setFilters, teams }) {
   if (!show) return null
@@ -61,6 +62,7 @@ function FilterModal({ show, onClose, filters, setFilters, teams }) {
             value={filters.due_date_from}
             onChange={(e) => setFilters({...filters, due_date_from: e.target.value})}
           />
+          <span className="calendar-icon"><img src={calendarIcon}></img></span>
         </div>
         
         <div className="form-group">
@@ -71,6 +73,7 @@ function FilterModal({ show, onClose, filters, setFilters, teams }) {
             value={filters.due_date_to}
             onChange={(e) => setFilters({...filters, due_date_to: e.target.value})}
           />
+          <span className="calendar-icon"><img src={calendarIcon}></img></span>
         </div>
         
         <div className="modal-buttons">

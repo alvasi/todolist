@@ -1,4 +1,5 @@
 import React from 'react'
+import calendarIcon from "../../assets/calendar.svg"
 
 function EditTaskModal({ show, onClose, onSubmit, editFormData, setEditFormData }) {
   if (!show) return null
@@ -37,6 +38,7 @@ function EditTaskModal({ show, onClose, onSubmit, editFormData, setEditFormData 
               value={editFormData.due_date}
               onChange={(e) => setEditFormData({...editFormData, due_date: e.target.value})}
             />
+            <span className="calendar-icon"><img src={calendarIcon}></img></span>
           </div>
           
           <div className="form-group">

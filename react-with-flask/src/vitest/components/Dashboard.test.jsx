@@ -364,11 +364,11 @@ describe('Dashboard Component', () => {
         expect(screen.getByText('Sort')).toBeInTheDocument()
       })
       
-  await userEvent.click(screen.getByText('Sort'))
+      await userEvent.click(screen.getByText('Sort'))
       
       expect(screen.getByText('Sort Tasks')).toBeInTheDocument()
       expect(screen.getByLabelText('Sort By')).toBeInTheDocument()
-      expect(screen.getByLabelText('Order')).toBeInTheDocument()
+      expect(screen.getByLabelText(/Order/)).toBeInTheDocument()
     })
 
     it('should apply sort by title ascending', async () => {
@@ -380,12 +380,12 @@ describe('Dashboard Component', () => {
       
       await userEvent.click(screen.getByText('Sort'))
       await userEvent.selectOptions(screen.getByLabelText('Sort By'), 'title')
-      await userEvent.selectOptions(screen.getByLabelText('Order'), 'asc')
+      await userEvent.selectOptions(screen.getByLabelText(/Order/), 'A to Z')
       await userEvent.click(screen.getByText('Apply'))
 
       await waitFor(() => {
         // The UI renders the active sort as a short tag
-        expect(screen.getByText('Title (Ascending)')).toBeInTheDocument()
+        expect(screen.getByText('Title (A → Z)')).toBeInTheDocument()
       })
     })
   })
