@@ -4,6 +4,8 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import Register from '../../pages/Register'
+import eyeOff from "../../assets/eyeOff.svg"
+import eye from "../../assets/eye.svg"
 
 // Mock the useNavigate hook
 const mockNavigate = vi.fn()
@@ -52,9 +54,9 @@ describe('Register Component', () => {
             expect(
                 screen.getByRole('heading', { name: 'Register' })
             ).toBeInTheDocument()
-            expect(screen.getByLabelText(/username:/i)).toBeInTheDocument()
-            expect(screen.getByLabelText(/password:/i)).toBeInTheDocument()
-            expect(screen.getByLabelText(/alias:/i)).toBeInTheDocument()
+            expect(screen.getByPlaceholderText(/Username/i)).toBeInTheDocument()
+            expect(screen.getByPlaceholderText(/Password/i)).toBeInTheDocument()
+            expect(screen.getByPlaceholderText(/Alias/i)).toBeInTheDocument()
             expect(
                 screen.getByRole('button', { name: 'Register' })
             ).toBeInTheDocument()
@@ -81,8 +83,8 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText(/username:/i)
-            const passwordInput = screen.getByLabelText(/password:/i)
+            const usernameInput = screen.getByPlaceholderText(/Username/i)
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
@@ -101,7 +103,7 @@ describe('Register Component', () => {
         it('should update username input value', async () => {
             renderRegister()
 
-            const usernameInput = screen.getByLabelText(/username:/i)
+            const usernameInput = screen.getByPlaceholderText(/Username/i)
             await userEvent.type(usernameInput, 'testuser')
 
             expect(usernameInput).toHaveValue('testuser')
@@ -110,7 +112,7 @@ describe('Register Component', () => {
         it('should update password input value', async () => {
             renderRegister()
 
-            const passwordInput = screen.getByLabelText(/password:/i)
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
             await userEvent.type(passwordInput, 'password123')
 
             expect(passwordInput).toHaveValue('password123')
@@ -119,7 +121,7 @@ describe('Register Component', () => {
         it('should update alias input value', async () => {
             renderRegister()
 
-            const aliasInput = screen.getByLabelText(/alias:/i)
+            const aliasInput = screen.getByPlaceholderText(/Alias/i)
             await userEvent.type(aliasInput, 'Test Alias')
 
             expect(aliasInput).toHaveValue('Test Alias')
@@ -136,9 +138,9 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText(/username:/i)
-            const passwordInput = screen.getByLabelText(/password:/i)
-            const aliasInput = screen.getByLabelText(/alias:/i)
+            const usernameInput = screen.getByPlaceholderText(/Username */i)
+            const passwordInput = screen.getByPlaceholderText(/Password */i)
+            const aliasInput = screen.getByPlaceholderText(/Alias/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
@@ -164,6 +166,53 @@ describe('Register Component', () => {
             })
         })
     })
+    describe('Password Toggle Functionality', () => {
+        it('should render password toggle button', () => {
+            renderRegister()
+
+            //Find password toggle using alt text
+            const toggleButton = screen.getByAltText(/toggle password/i)
+            expect(toggleButton).toBeInTheDocument()
+        }) 
+        
+        it('should initially show password as type "password"', () => {
+            renderRegister()
+
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
+            expect(passwordInput).toHaveAttribute('type', 'password')
+        })
+
+        it('should toggle password visibility when clicking the eye icon', async () => {
+            renderRegister()
+
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
+            const toggleButton = screen.getByAltText(/toggle password/i)
+            
+            await userEvent.click(toggleButton)
+            expect(passwordInput).toHaveAttribute('type','text')
+
+            await userEvent.click(toggleButton)
+            expect(passwordInput).toHaveAttribute('type','password')
+
+        })
+
+        it('should toggle icon when clicking the password toggle button', async () => {
+            renderRegister()
+
+            const toggleButton = screen.getByAltText(/toggle password/i)
+
+            const initialIcon = toggleButton.getAttribute('src')
+            expect(initialIcon).toBe(eyeOff)
+
+            await userEvent.click(toggleButton)
+            const afterClickIcon = toggleButton.getAttribute('src')
+            expect(afterClickIcon).toBe(eye)
+
+            await userEvent.click(toggleButton)
+            const finalIcon = toggleButton.getAttribute('src')
+            expect(finalIcon).toBe(eyeOff)
+        })
+    })
 
     describe('API Response Handling', () => {
         it('should show success message and redirect on successful registration', async () => {
@@ -178,8 +227,8 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText(/username:/i)
-            const passwordInput = screen.getByLabelText(/password:/i)
+            const usernameInput = screen.getByPlaceholderText(/Username/i)
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
@@ -216,8 +265,8 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText(/username:/i)
-            const passwordInput = screen.getByLabelText(/password:/i)
+            const usernameInput = screen.getByPlaceholderText(/Username/i)
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
@@ -245,8 +294,8 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText(/username:/i)
-            const passwordInput = screen.getByLabelText(/password:/i)
+            const usernameInput = screen.getByPlaceholderText(/Username/i)
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
@@ -268,8 +317,8 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText(/username:/i)
-            const passwordInput = screen.getByLabelText(/password:/i)
+            const usernameInput = screen.getByPlaceholderText(/Username/i)
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
@@ -290,7 +339,7 @@ describe('Register Component', () => {
         it('should not submit if username is empty', async () => {
             renderRegister()
 
-            const passwordInput = screen.getByLabelText(/password:/i)
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
@@ -305,7 +354,7 @@ describe('Register Component', () => {
         it('should not submit if password is empty', async () => {
             renderRegister()
 
-            const usernameInput = screen.getByLabelText(/username:/i)
+            const usernameInput = screen.getByPlaceholderText(/Username/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
@@ -325,8 +374,8 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText(/username:/i)
-            const passwordInput = screen.getByLabelText(/password:/i)
+            const usernameInput = screen.getByPlaceholderText(/Username/i)
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })
@@ -371,8 +420,8 @@ describe('Register Component', () => {
 
             renderRegister()
 
-            const usernameInput = screen.getByLabelText(/username:/i)
-            const passwordInput = screen.getByLabelText(/password:/i)
+            const usernameInput = screen.getByPlaceholderText(/Username/i)
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
             const submitButton = screen.getByRole('button', {
                 name: 'Register',
             })

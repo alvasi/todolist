@@ -1,14 +1,28 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import eyeOff from "../assets/eyeOff.svg"
+import eye from '../assets/eye.svg'
 import '../assets/Auth.css'
 
 function Login() {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
+    const [type, setType] = useState('password')
+    const [icon, setIcon] = useState(eyeOff)
     const [message, setMessage] = useState('')
     const [messageType, setMessageType] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const navigate = useNavigate()
+
+    const handleToggle = () => {
+        if (type === 'password') {
+            setIcon(eye);
+            setType('text')
+        } else {
+            setIcon(eyeOff)
+            setType('password')
+        }
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -60,7 +74,7 @@ function Login() {
             <h2>Login</h2>
             <form onSubmit={handleSubmit}>
                 <div className="form-group">
-                    <label htmlFor="username">Username:</label>
+                    <label htmlFor="username"></label>
                     <input
                         id="username"
                         name="username"
@@ -68,20 +82,28 @@ function Login() {
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         required
-                        placeholder="Enter your username"
+                        placeholder="Username"
                     />
                 </div>
-                <div className="form-group">
-                    <label htmlFor="password">Password:</label>
-                    <input
-                        id="password"
-                        name="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        placeholder="Enter your password"
-                    />
+                <div className="form-group login-password-group">
+                    <label htmlFor="password"></label>
+                    <div className="login-password-wrapper">
+                        <input
+                            id="password"
+                            name="password"
+                            type={type}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            placeholder="Password"
+                        />
+                        <span className="login-password-toggle" onClick={handleToggle}>
+                            <img 
+                                src={icon} 
+                                alt={'toggle password'}
+                            />
+                        </span>
+                    </div>
                 </div>
                 <button type="submit" disabled={isLoading}>
                     {isLoading ? 'Logging in...' : 'Login'}

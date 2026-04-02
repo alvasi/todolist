@@ -4,6 +4,8 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import Login from '../../pages/Login'
+import eyeOff from "../../assets/eyeOff.svg"
+import eye from "../../assets/eye.svg"
 
 // Mock the useNavigate hook
 const mockNavigate = vi.fn()
@@ -50,8 +52,8 @@ describe('Login Component', () => {
             expect(
                 screen.getByRole('heading', { name: 'Login' })
             ).toBeInTheDocument()
-            expect(screen.getByLabelText('Username:')).toBeInTheDocument()
-            expect(screen.getByLabelText('Password:')).toBeInTheDocument()
+            expect(screen.getByPlaceholderText('Username')).toBeInTheDocument()
+            expect(screen.getByPlaceholderText('Password')).toBeInTheDocument()
             expect(
                 screen.getByRole('button', { name: 'Login' })
             ).toBeInTheDocument()
@@ -79,8 +81,8 @@ describe('Login Component', () => {
 
             renderLogin()
 
-            const usernameInput = screen.getByLabelText('Username:')
-            const passwordInput = screen.getByLabelText('Password:')
+            const usernameInput = screen.getByPlaceholderText('Username')
+            const passwordInput = screen.getByPlaceholderText('Password')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, 'testuser')
@@ -96,7 +98,7 @@ describe('Login Component', () => {
         it('should update username input value', async () => {
             renderLogin()
 
-            const usernameInput = screen.getByLabelText('Username:')
+            const usernameInput = screen.getByPlaceholderText('Username')
             await userEvent.type(usernameInput, 'testuser')
 
             expect(usernameInput).toHaveValue('testuser')
@@ -105,7 +107,7 @@ describe('Login Component', () => {
         it('should update password input value', async () => {
             renderLogin()
 
-            const passwordInput = screen.getByLabelText('Password:')
+            const passwordInput = screen.getByPlaceholderText('Password')
             await userEvent.type(passwordInput, 'password123')
 
             expect(passwordInput).toHaveValue('password123')
@@ -129,8 +131,8 @@ describe('Login Component', () => {
 
             renderLogin()
 
-            const usernameInput = screen.getByLabelText('Username:')
-            const passwordInput = screen.getByLabelText('Password:')
+            const usernameInput = screen.getByPlaceholderText('Username')
+            const passwordInput = screen.getByPlaceholderText('Password')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, 'testuser')
@@ -150,6 +152,53 @@ describe('Login Component', () => {
                     }),
                 })
             })
+        })
+    })
+    describe('Password Toggle Functionality', () => {
+        it('should render password toggle button', () => {
+            renderLogin()
+
+            //Find password toggle using alt text
+            const toggleButton = screen.getByAltText(/toggle password/i)
+            expect(toggleButton).toBeInTheDocument()
+        }) 
+        
+        it('should initially show password as type "password"', () => {
+            renderLogin()
+
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
+            expect(passwordInput).toHaveAttribute('type', 'password')
+        })
+
+        it('should toggle password visibility when clicking the eye icon', async () => {
+            renderLogin()
+
+            const passwordInput = screen.getByPlaceholderText(/Password/i)
+            const toggleButton = screen.getByAltText(/toggle password/i)
+            
+            await userEvent.click(toggleButton)
+            expect(passwordInput).toHaveAttribute('type','text')
+
+            await userEvent.click(toggleButton)
+            expect(passwordInput).toHaveAttribute('type','password')
+
+        })
+
+        it('should toggle icon when clicking the password toggle button', async () => {
+            renderLogin()
+
+            const toggleButton = screen.getByAltText(/toggle password/i)
+
+            const initialIcon = toggleButton.getAttribute('src')
+            expect(initialIcon).toBe(eyeOff)
+
+            await userEvent.click(toggleButton)
+            const afterClickIcon = toggleButton.getAttribute('src')
+            expect(afterClickIcon).toBe(eye)
+
+            await userEvent.click(toggleButton)
+            const finalIcon = toggleButton.getAttribute('src')
+            expect(finalIcon).toBe(eyeOff)
         })
     })
 
@@ -173,8 +222,8 @@ describe('Login Component', () => {
 
             renderLogin()
 
-            const usernameInput = screen.getByLabelText('Username:')
-            const passwordInput = screen.getByLabelText('Password:')
+            const usernameInput = screen.getByPlaceholderText('Username')
+            const passwordInput = screen.getByPlaceholderText('Password')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, 'testuser')
@@ -202,8 +251,8 @@ describe('Login Component', () => {
 
             renderLogin()
 
-            const usernameInput = screen.getByLabelText('Username:')
-            const passwordInput = screen.getByLabelText('Password:')
+            const usernameInput = screen.getByPlaceholderText('Username')
+            const passwordInput = screen.getByPlaceholderText('Password')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, 'testuser')
@@ -230,8 +279,8 @@ describe('Login Component', () => {
 
             renderLogin()
 
-            const usernameInput = screen.getByLabelText('Username:')
-            const passwordInput = screen.getByLabelText('Password:')
+            const usernameInput = screen.getByPlaceholderText('Username')
+            const passwordInput = screen.getByPlaceholderText('Password')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, 'testuser')
@@ -248,8 +297,8 @@ describe('Login Component', () => {
 
             renderLogin()
 
-            const usernameInput = screen.getByLabelText('Username:')
-            const passwordInput = screen.getByLabelText('Password:')
+            const usernameInput = screen.getByPlaceholderText('Username')
+            const passwordInput = screen.getByPlaceholderText('Password')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, 'testuser')
@@ -268,7 +317,7 @@ describe('Login Component', () => {
         it('should not submit if username is empty', async () => {
             renderLogin()
 
-            const passwordInput = screen.getByLabelText('Password:')
+            const passwordInput = screen.getByPlaceholderText('Password')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(passwordInput, 'password123')
@@ -281,7 +330,7 @@ describe('Login Component', () => {
         it('should not submit if password is empty', async () => {
             renderLogin()
 
-            const usernameInput = screen.getByLabelText('Username:')
+            const usernameInput = screen.getByPlaceholderText('Username')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, 'testuser')
@@ -321,8 +370,8 @@ describe('Login Component', () => {
 
             renderLogin()
 
-            const usernameInput = screen.getByLabelText('Username:')
-            const passwordInput = screen.getByLabelText('Password:')
+            const usernameInput = screen.getByPlaceholderText('Username')
+            const passwordInput = screen.getByPlaceholderText('Password')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, 'testuser')
@@ -362,7 +411,7 @@ describe('Login Component', () => {
         it('should handle empty string username', async () => {
             renderLogin()
 
-            const passwordInput = screen.getByLabelText('Password:')
+            const passwordInput = screen.getByPlaceholderText('Password')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(passwordInput, 'password123')
@@ -374,7 +423,7 @@ describe('Login Component', () => {
         it('should handle empty string password', async () => {
             renderLogin()
 
-            const usernameInput = screen.getByLabelText('Username:')
+            const usernameInput = screen.getByPlaceholderText('Username')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, 'testuser')
@@ -386,8 +435,8 @@ describe('Login Component', () => {
         it('should handle whitespace-only username', async () => {
             renderLogin()
 
-            const usernameInput = screen.getByLabelText('Username:')
-            const passwordInput = screen.getByLabelText('Password:')
+            const usernameInput = screen.getByPlaceholderText('Username')
+            const passwordInput = screen.getByPlaceholderText('Password')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, '   ')
@@ -401,8 +450,8 @@ describe('Login Component', () => {
         it('should handle whitespace-only password', async () => {
             renderLogin()
 
-            const usernameInput = screen.getByLabelText('Username:')
-            const passwordInput = screen.getByLabelText('Password:')
+            const usernameInput = screen.getByPlaceholderText('Username')
+            const passwordInput = screen.getByPlaceholderText('Password')
             const submitButton = screen.getByRole('button', { name: 'Login' })
 
             await userEvent.type(usernameInput, 'testuser')

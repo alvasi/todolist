@@ -7,7 +7,7 @@
   max-width: 450px;
   margin: 0 auto;
   padding: 2rem;
-  min-height: 100vh;
+  min-height: 50vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -43,7 +43,7 @@
 .register-container form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 /* Form Groups */
@@ -51,7 +51,7 @@
 .register-container .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0rem;
 }
 
 /* Labels */
@@ -185,6 +185,108 @@
 /* Register specific - line breaks */
 .register-container br {
   display: none;
+}
+
+/* Login-specific password toggle styles */
+.login-password-group {
+  position: relative;
+}
+
+.login-password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.login-password-wrapper input {
+  padding-right: 40px !important;
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  z-index: 1;
+}
+
+.login-password-toggle img {
+  width: 20px;
+  height: 20px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.login-password-toggle:hover img {
+  opacity: 1;
+}
+
+/* Register-specific password toggle styles (keep your existing register styles) */
+.register-password-group {
+  position: relative;
+}
+
+.register-password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.register-password-wrapper input {
+  padding-right: 40px !important;
+}
+
+.register-password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  z-index: 1;
+}
+
+.register-password-toggle img {
+  width: 20px;
+  height: 20px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.register-password-toggle:hover img {
+  opacity: 1;
+}
+
+/* Or if you want different styling for login vs register */
+.login-password-toggle img {
+  width: 20px; 
+  height: 20px;
+  opacity: 0.6;
+}
+
+.register-password-toggle img {
+  width: 20px;
+  height: 20px;
+  opacity: 0.6;
+}
+
+/* Different positions if needed */
+.login-password-toggle {
+  right: 15px;  /* Different position for login */
+}
+
+.register-password-toggle {
+  right: 10px;  /* Different position for register */
 }
 
 /* Hero Section (if you have hero images) */

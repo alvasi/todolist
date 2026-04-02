@@ -21,7 +21,7 @@ A full-stack todo list application built with React, Flask, and PostgreSQL. The 
 2. **Start the application**
     ```bash
     cd todolist
-    docker compose up -d
+    docker compose up
     ```
 3. **Access the application**  
     http://localhost:5173
