@@ -14,10 +14,41 @@ function ActiveSort({ sort, onClearSort }) {
       'priority': 'Priority'
     }
     
-    const sortOrderDisplay = sort.sort_order === 'asc' ? 'Ascending' : 'Descending'
-    const sortByDisplay = sortByMap[sort.sort_by] || sort.sort_by
+    // Get concise order display
+    const getOrderDisplay = () => {
+      const sortBy = sort.sort_by
+      const sortOrder = sort.sort_order
+      
+      const orderMap = {
+        created_at: {
+          asc: 'Oldest → Newest',
+          desc: 'Newest → Oldest'
+        },
+        due_date: {
+          asc: 'Earliest → Latest',
+          desc: 'Latest → Earliest'
+        },
+        title: {
+          asc: 'A → Z',
+          desc: 'Z → A'
+        },
+        task_status: {
+          asc: 'Archived → Not Started',
+          desc: 'Not Started → Archived'
+        },
+        priority: {
+          asc: 'Low → High',
+          desc: 'High → Low'
+        }
+      }
+      
+      return orderMap[sortBy]?.[sortOrder] || (sortOrder === 'asc' ? '↑' : '↓')
+    }
     
-    return `${sortByDisplay} (${sortOrderDisplay})`
+    const sortByDisplay = sortByMap[sort.sort_by] || sort.sort_by
+    const orderDisplay = getOrderDisplay()
+    
+    return `${sortByDisplay} (${orderDisplay})`
   }
   
   return (

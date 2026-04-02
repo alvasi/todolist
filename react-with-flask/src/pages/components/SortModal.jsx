@@ -2,7 +2,48 @@ import React from 'react'
 
 function SortModal({ show, onClose, sort, setSort }) {
   if (!show) return null
-  
+
+  // Get order options based on sort field
+  const getOrderOptions = () => {
+    const sortBy = sort.sort_by
+    
+    const options = {
+      created_at: {
+        label: 'Order by date',
+        asc: 'Oldest to Newest',
+        desc: 'Newest to Oldest'
+      },
+      due_date: {
+        label: 'Order by due date',
+        asc: 'Earliest to Latest',
+        desc: 'Latest to Earliest'
+      },
+      title: {
+        label: 'Order alphabetically',
+        asc: 'A to Z',
+        desc: 'Z to A'
+      },
+      task_status: {
+        label: 'Order by completion',
+        asc: 'Archived → Complete → In Progress → Not Started',
+        desc: 'Not Started → In Progress → Complete → Archived',
+      },
+      priority: {
+        label: 'Order by priority',
+        asc: 'Lowest to Highest',
+        desc: 'Highest to Lowest'
+      }
+    }
+    
+    return options[sortBy] || {
+      label: 'Order',
+      asc: 'Ascending',
+      desc: 'Descending'
+    }
+  }
+
+  const orderOptions = getOrderOptions()
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -24,14 +65,14 @@ function SortModal({ show, onClose, sort, setSort }) {
         </div>
         
         <div className="form-group">
-          <label htmlFor="sort-order-select">Order</label>
+          <label htmlFor="sort-order-select">{orderOptions.label}</label>
           <select
             id="sort-order-select"
             value={sort.sort_order}
             onChange={(e) => setSort({...sort, sort_order: e.target.value})}
           >
-            <option value="asc">Ascending (A to Z, oldest first)</option>
-            <option value="desc">Descending (Z to A, newest first)</option>
+            <option value="asc">{orderOptions.asc}</option>
+            <option value="desc">{orderOptions.desc}</option>
           </select>
         </div>
         
